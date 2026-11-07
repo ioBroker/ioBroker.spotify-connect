@@ -1,6 +1,6 @@
 {
   "name": "iobroker.spotify-connect",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Spotify Connect receiver for ioBroker based on Spotify Soloist; streams to any player with a media.url state",
   "author": {
     "name": "Denis Haev",
