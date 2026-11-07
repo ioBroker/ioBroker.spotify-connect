@@ -18,6 +18,7 @@ export class PipeWire {
     private procs: ChildProcess[] = [];
     private stopping = false;
     public readonly runtimeDir: string;
+    private readonly configDir: string;
 
     public constructor(
         baseDir: string,
@@ -25,6 +26,7 @@ export class PipeWire {
         private readonly onCrash: (name: string) => void,
     ) {
         this.runtimeDir = join(baseDir, 'run');
+        this.configDir = join(baseDir, 'config');
     }
 
     /** Environment that points PipeWire/Pulse clients (Soloist, pactl, ffmpeg) to this instance. */
@@ -45,9 +47,30 @@ export class PipeWire {
         await fs.rm(this.runtimeDir, { recursive: true, force: true });
         await fs.mkdir(this.runtimeDir, { recursive: true, mode: 0o700 });
 
+        // WirePlumber must not grab sound cards, Bluetooth or cameras of the system: we only need the null sink
+        const confDir = join(this.configDir, 'wireplumber', 'wireplumber.conf.d');
+        await fs.mkdir(confDir, { recursive: true });
+        await fs.writeFile(
+            join(confDir, '50-spotify-connect.conf'),
+            [
+                '# written by ioBroker.spotify-connect',
+                'wireplumber.profiles = {',
+                '  main = {',
+                '    monitor.alsa = disabled',
+                '    monitor.alsa-midi = disabled',
+                '    monitor.bluez = disabled',
+                '    monitor.bluez-midi = disabled',
+                '    monitor.v4l2 = disabled',
+                '    monitor.libcamera = disabled',
+                '  }',
+                '}',
+                '',
+            ].join('\n'),
+        );
+
         this.spawn('pipewire', []);
         await this.waitFor(join(this.runtimeDir, 'pipewire-0'), 10_000);
-        this.spawn('wireplumber', []);
+        this.spawn('wireplumber', [], { XDG_CONFIG_HOME: this.configDir });
         this.spawn('pipewire-pulse', []);
         await this.waitFor(join(this.runtimeDir, 'pulse', 'native'), 10_000);
 
@@ -81,8 +104,8 @@ export class PipeWire {
         await fs.rm(this.runtimeDir, { recursive: true, force: true }).catch(() => undefined);
     }
 
-    private spawn(cmd: string, args: string[]): void {
-        const p = spawn(cmd, args, { env: this.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    private spawn(cmd: string, args: string[], extraEnv: NodeJS.ProcessEnv = {}): void {
+        const p = spawn(cmd, args, { env: { ...this.env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
         const name = cmd;
         p.stdout?.on('data', d => this.log.debug(`${name}: ${d.toString().trim()}`));
         p.stderr?.on('data', d => this.log.debug(`${name}: ${d.toString().trim()}`));

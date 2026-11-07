@@ -4,12 +4,20 @@
   "items": {
     "_spotify": {
       "type": "panel",
-      "label": { "en": "Spotify", "de": "Spotify", "ru": "Spotify" },
+      "label": {
+        "en": "Spotify",
+        "de": "Spotify",
+        "ru": "Spotify"
+      },
       "items": {
         "_howtoHeader": {
           "type": "header",
           "size": 4,
-          "text": { "en": "How to get the Soloist API key", "de": "So bekommen Sie den Soloist-API-Key", "ru": "Как получить API-ключ Soloist" },
+          "text": {
+            "en": "How to get the Soloist API key",
+            "de": "So bekommen Sie den Soloist-API-Key",
+            "ru": "Как получить API-ключ Soloist"
+          },
           "sm": 12
         },
         "_howto": {
@@ -26,8 +34,14 @@
           "button": true,
           "variant": "outlined",
           "href": "https://developer.spotify.com/dashboard",
-          "label": { "en": "1. Open Spotify for Developers", "de": "1. Spotify for Developers öffnen", "ru": "1. Открыть Spotify for Developers" },
-          "sm": 12, "md": 6, "lg": 4,
+          "label": {
+            "en": "1. Open Spotify for Developers",
+            "de": "1. Spotify for Developers öffnen",
+            "ru": "1. Открыть Spotify for Developers"
+          },
+          "sm": 12,
+          "md": 6,
+          "lg": 4,
           "newLine": true
         },
         "_linkSoloist": {
@@ -35,31 +49,61 @@
           "button": true,
           "variant": "contained",
           "href": "https://developer.spotify.com/dashboard/soloist",
-          "label": { "en": "2. Create Soloist API key", "de": "2. Soloist-API-Key erzeugen", "ru": "2. Создать API-ключ Soloist" },
-          "sm": 12, "md": 6, "lg": 4
+          "label": {
+            "en": "2. Create Soloist API key",
+            "de": "2. Soloist-API-Key erzeugen",
+            "ru": "2. Создать API-ключ Soloist"
+          },
+          "sm": 12,
+          "md": 6,
+          "lg": 4
         },
         "apiKey": {
           "type": "password",
           "repeat": false,
           "visible": true,
-          "label": { "en": "Soloist API key", "de": "Soloist-API-Key", "ru": "API-ключ Soloist" },
-          "help": { "en": "Starts with spak_", "de": "Beginnt mit spak_", "ru": "Начинается с spak_" },
+          "label": {
+            "en": "Soloist API key",
+            "de": "Soloist-API-Key",
+            "ru": "API-ключ Soloist"
+          },
+          "help": {
+            "en": "Starts with spak_",
+            "de": "Beginnt mit spak_",
+            "ru": "Начинается с spak_"
+          },
           "validator": "!data.apiKey || data.apiKey.startsWith('spak_')",
-          "validatorErrorText": { "en": "The key must start with spak_", "de": "Der Key muss mit spak_ beginnen", "ru": "Ключ должен начинаться с spak_" },
+          "validatorErrorText": "Key must start with spak_ / Key muss mit spak_ beginnen",
           "validatorNoSaveOnError": true,
-          "sm": 12, "md": 6, "lg": 4,
+          "sm": 12,
+          "md": 6,
+          "lg": 4,
           "newLine": true
         },
         "deviceName": {
           "type": "text",
-          "label": { "en": "Device name in the Spotify app", "de": "Gerätename in der Spotify-App", "ru": "Имя устройства в приложении Spotify" },
-          "help": { "en": "e.g. Living room", "de": "z. B. Wohnzimmer", "ru": "например, Гостиная" },
-          "sm": 12, "md": 6, "lg": 4
+          "label": {
+            "en": "Device name in the Spotify app",
+            "de": "Gerätename in der Spotify-App",
+            "ru": "Имя устройства в приложении Spotify"
+          },
+          "help": {
+            "en": "e.g. Living room",
+            "de": "z. B. Wohnzimmer",
+            "ru": "например, Гостиная"
+          },
+          "sm": 12,
+          "md": 6,
+          "lg": 4
         },
         "_linkDocs": {
           "type": "staticLink",
           "href": "https://developer.spotify.com/documentation/soloist",
-          "label": { "en": "Spotify Soloist documentation", "de": "Dokumentation von Spotify Soloist", "ru": "Документация Spotify Soloist" },
+          "label": {
+            "en": "Spotify Soloist documentation",
+            "de": "Dokumentation von Spotify Soloist",
+            "ru": "Документация Spotify Soloist"
+          },
           "sm": 12,
           "newLine": true
         }
@@ -67,7 +111,11 @@
     },
     "_players": {
       "type": "panel",
-      "label": { "en": "Players", "de": "Player", "ru": "Плееры" },
+      "label": {
+        "en": "Players",
+        "de": "Player",
+        "ru": "Плееры"
+      },
       "items": {
         "_playersInfo": {
           "type": "staticText",
@@ -83,50 +131,122 @@
           "sm": 12,
           "noDelete": false,
           "items": [
-            { "type": "checkbox", "attr": "enabled", "title": { "en": "Active", "de": "Aktiv", "ru": "Вкл." }, "width": 80, "default": true },
-            { "type": "objectId", "attr": "id", "title": { "en": "media.url state", "de": "media.url-State", "ru": "Состояние media.url" }, "types": "state", "customFilter": { "common": { "role": "media.url" } } }
+            {
+              "type": "checkbox",
+              "attr": "enabled",
+              "title": {
+                "en": "Active",
+                "de": "Aktiv",
+                "ru": "Вкл."
+              },
+              "width": 80,
+              "default": true
+            },
+            {
+              "type": "objectId",
+              "attr": "id",
+              "title": {
+                "en": "media.url state",
+                "de": "media.url-State",
+                "ru": "Состояние media.url"
+              },
+              "types": "state",
+              "customFilter": {
+                "common": {
+                  "role": "media.url"
+                }
+              }
+            }
           ]
         },
         "stopAfterSec": {
           "type": "number",
           "min": 0,
-          "label": { "en": "Stop players after pause (seconds)", "de": "Player nach Pause stoppen (Sekunden)", "ru": "Остановить плееры после паузы (секунды)" },
-          "sm": 12, "md": 6, "lg": 4,
+          "label": {
+            "en": "Stop players after pause (seconds)",
+            "de": "Player nach Pause stoppen (Sekunden)",
+            "ru": "Остановить плееры после паузы (секунды)"
+          },
+          "sm": 12,
+          "md": 6,
+          "lg": 4,
           "newLine": true
         }
       }
     },
     "_advanced": {
       "type": "panel",
-      "label": { "en": "Advanced", "de": "Erweitert", "ru": "Дополнительно" },
+      "label": {
+        "en": "Advanced",
+        "de": "Erweitert",
+        "ru": "Дополнительно"
+      },
       "items": {
         "streamHost": {
           "type": "ip",
           "listenOnAllPorts": false,
           "onlyIp4": true,
-          "label": { "en": "Address the players use to reach ioBroker", "de": "Adresse, unter der die Player ioBroker erreichen", "ru": "Адрес, по которому плееры видят ioBroker" },
-          "help": { "en": "Empty = detect automatically", "de": "Leer = automatisch erkennen", "ru": "Пусто = определить автоматически" },
-          "sm": 12, "md": 6, "lg": 4
+          "label": {
+            "en": "Address the players use to reach ioBroker",
+            "de": "Adresse, unter der die Player ioBroker erreichen",
+            "ru": "Адрес, по которому плееры видят ioBroker"
+          },
+          "help": {
+            "en": "Empty = detect automatically",
+            "de": "Leer = automatisch erkennen",
+            "ru": "Пусто = определить автоматически"
+          },
+          "sm": 12,
+          "md": 6,
+          "lg": 4
         },
         "streamPort": {
           "type": "port",
-          "label": { "en": "Stream port", "de": "Stream-Port", "ru": "Порт потока" },
-          "sm": 12, "md": 3, "lg": 2
+          "label": {
+            "en": "Stream port",
+            "de": "Stream-Port",
+            "ru": "Порт потока"
+          },
+          "sm": 12,
+          "md": 3,
+          "lg": 2
         },
         "format": {
           "type": "select",
-          "label": { "en": "Stream format", "de": "Stream-Format", "ru": "Формат потока" },
+          "label": {
+            "en": "Stream format",
+            "de": "Stream-Format",
+            "ru": "Формат потока"
+          },
           "options": [
-            { "label": "MP3 256 kbit/s", "value": "mp3" },
-            { "label": "FLAC (lossless)", "value": "flac" }
+            {
+              "label": "MP3 256 kbit/s",
+              "value": "mp3"
+            },
+            {
+              "label": "FLAC (lossless)",
+              "value": "flac"
+            }
           ],
-          "sm": 12, "md": 3, "lg": 2
+          "sm": 12,
+          "md": 3,
+          "lg": 2
         },
         "apiPort": {
           "type": "port",
-          "label": { "en": "Local Soloist API port", "de": "Lokaler Soloist-API-Port", "ru": "Локальный порт API Soloist" },
-          "help": { "en": "Only on 127.0.0.1. Must differ per instance", "de": "Nur auf 127.0.0.1. Pro Instanz verschieden", "ru": "Только на 127.0.0.1. Для каждого экземпляра свой" },
-          "sm": 12, "md": 3, "lg": 2,
+          "label": {
+            "en": "Local Soloist API port",
+            "de": "Lokaler Soloist-API-Port",
+            "ru": "Локальный порт API Soloist"
+          },
+          "help": {
+            "en": "Only on 127.0.0.1. Must differ per instance",
+            "de": "Nur auf 127.0.0.1. Pro Instanz verschieden",
+            "ru": "Только на 127.0.0.1. Для каждого экземпляра свой"
+          },
+          "sm": 12,
+          "md": 3,
+          "lg": 2,
           "newLine": true
         }
       }

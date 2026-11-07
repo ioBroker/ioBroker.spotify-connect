@@ -1,9 +1,9 @@
 {
   "common": {
     "name": "spotify-connect",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "news": {
-      "0.0.1": {
+      "0.1.0": {
         "en": "initial release",
         "de": "Erstveröffentlichung",
         "ru": "первый выпуск"
@@ -30,7 +30,6 @@
       "audio",
       "speaker"
     ],
-    "license": "MIT",
     "platform": "Javascript/Node.js",
     "mode": "daemon",
     "type": "multimedia",
@@ -64,7 +63,16 @@
     },
     "os": [
       "linux"
-    ]
+    ],
+    "icon": "spotify-connect.png",
+    "extIcon": "https://raw.githubusercontent.com/ioBroker/ioBroker.spotify-connect/main/admin/spotify-connect.png",
+    "readme": "https://github.com/ioBroker/ioBroker.spotify-connect/blob/main/README.md",
+    "loglevel": "info",
+    "enabled": true,
+    "licenseInformation": {
+      "license": "MIT",
+      "type": "free"
+    }
   },
   "native": {
     "apiKey": "",

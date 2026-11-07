@@ -11,6 +11,7 @@ import {
 } from './lib/installer';
 import { PipeWire, SINK_NAME } from './lib/pipewire';
 import { EXIT_EXPIRED, Soloist, type SoloistEntity } from './lib/soloist';
+import { CHANNELS, STATES } from './lib/states';
 import { StreamServer } from './lib/stream-server';
 
 const DAY = 24 * 3600 * 1000;
@@ -18,44 +19,6 @@ const DAY = 24 * 3600 * 1000;
 const UPDATE_FROM_DAYS = 30;
 /** Restart for an update even during playback when the build expires within this many days. */
 const FORCE_RESTART_DAYS = 3;
-
-type StateDef = { name: string; type: ioBroker.CommonType; role: string; read?: boolean; write?: boolean; unit?: string; states?: Record<string, string>; min?: number; max?: number; def?: ioBroker.StateValue };
-
-const STATES: Record<string, StateDef> = {
-    'info.loggedIn': { name: 'Spotify account connected', type: 'boolean', role: 'indicator', def: false },
-    'info.active': { name: 'Active Spotify Connect device', type: 'boolean', role: 'indicator', def: false },
-    'info.soloistVersion': { name: 'Spotify Soloist version', type: 'string', role: 'text', def: '' },
-    'info.buildDate': { name: 'Soloist build date', type: 'string', role: 'date', def: '' },
-    'info.expiresInDays': { name: 'Days until the Soloist build expires', type: 'number', role: 'value', unit: 'days', def: 0 },
-    'info.lastUpdateCheck': { name: 'Last update check', type: 'number', role: 'date', def: 0 },
-    'info.updateError': { name: 'Last update error', type: 'string', role: 'text', def: '' },
-
-    'player.status': { name: 'Playback status', type: 'string', role: 'media.state', def: 'idle', states: { idle: 'idle', playing: 'playing', paused: 'paused', buffering: 'buffering' } },
-    'player.title': { name: 'Title', type: 'string', role: 'media.title', def: '' },
-    'player.artist': { name: 'Artist', type: 'string', role: 'media.artist', def: '' },
-    'player.album': { name: 'Album', type: 'string', role: 'media.album', def: '' },
-    'player.cover': { name: 'Cover', type: 'string', role: 'media.cover', def: '' },
-    'player.uri': { name: 'Spotify URI', type: 'string', role: 'text', def: '' },
-    'player.context': { name: 'Playing from (playlist, album)', type: 'string', role: 'text', def: '' },
-    'player.duration': { name: 'Duration', type: 'number', role: 'media.duration', unit: 's', def: 0 },
-    'player.elapsed': { name: 'Position', type: 'number', role: 'media.elapsed', unit: 's', def: 0 },
-    'player.shuffle': { name: 'Shuffle', type: 'boolean', role: 'media.mode.shuffle', def: false },
-    'player.repeat': { name: 'Repeat', type: 'string', role: 'media.mode.repeat', def: 'off', states: { off: 'off', context: 'context', track: 'track' } },
-
-    'control.play': { name: 'Play / resume', type: 'boolean', role: 'button.play', read: false, write: true },
-    'control.pause': { name: 'Pause', type: 'boolean', role: 'button.pause', read: false, write: true },
-    'control.next': { name: 'Next track', type: 'boolean', role: 'button.next', read: false, write: true },
-    'control.previous': { name: 'Previous track', type: 'boolean', role: 'button.prev', read: false, write: true },
-    'control.volume': { name: 'Volume', type: 'number', role: 'level.volume', write: true, min: 0, max: 100, unit: '%', def: 0 },
-    'control.seek': { name: 'Seek to position', type: 'number', role: 'media.seek', write: true, unit: 's', def: 0 },
-    'control.shuffle': { name: 'Shuffle', type: 'boolean', role: 'media.mode.shuffle', write: true, def: false },
-    'control.repeat': { name: 'Repeat (off, context, track)', type: 'string', role: 'media.mode.repeat', write: true, def: 'off', states: { off: 'off', context: 'context', track: 'track' } },
-    'control.playUri': { name: 'Play Spotify URI (track, album, playlist)', type: 'string', role: 'media.url', write: true, def: '' },
-    'control.activate': { name: 'Make this the active Spotify device', type: 'boolean', role: 'button', read: false, write: true },
-
-    'stream.url': { name: 'Stream URL', type: 'string', role: 'url', def: '' },
-    'stream.clients': { name: 'Connected players', type: 'number', role: 'value', def: 0 },
-};
 
 class SpotifyConnect extends utils.Adapter {
     private pipewire?: PipeWire;
@@ -74,6 +37,7 @@ class SpotifyConnect extends utils.Adapter {
     private status = 'idle';
     private active = false;
     private loggedIn = false;
+    private loginReported = false;
     private targetsPlaying = false;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
@@ -260,6 +224,7 @@ class SpotifyConnect extends utils.Adapter {
         s.on('expires', days => void this.setState('info.expiresInDays', days, true));
         s.on('api', connected => {
             if (!connected) {
+                this.loginReported = false;
                 void this.setState('info.connection', false, true);
             }
         });
@@ -299,16 +264,23 @@ class SpotifyConnect extends utils.Adapter {
 
     private async onApiMessage(msg: any): Promise<void> {
         switch (msg.type) {
-            case 'auth_state':
-                this.loggedIn = !!msg.logged_in;
-                await this.setState('info.loggedIn', this.loggedIn, true);
-                await this.setState('info.connection', true, true);
+            case 'auth_state': {
+                const loggedIn = !!msg.logged_in;
                 this.restartDelay = 5000;
-                if (!this.loggedIn) {
-                    this.log.info(`Waiting for login: open the Spotify app and select "${msg.device_name}" as device`);
+                if (loggedIn !== this.loggedIn || !this.loginReported) {
+                    this.loginReported = true;
+                    if (loggedIn) {
+                        this.log.info(`Spotify Connect device "${msg.device_name}" is ready`);
+                    } else {
+                        this.log.info(`Waiting for login: open the Spotify app and select "${msg.device_name}" as device`);
+                    }
                 }
+                this.loggedIn = loggedIn;
+                await this.setState('info.loggedIn', loggedIn, true);
+                await this.setState('info.connection', loggedIn, true);
                 await this.onPlayback(this.status, !!msg.is_active);
                 break;
+            }
             case 'playback_state':
                 await this.setItem(msg.item);
                 await this.setContext(msg.context);
@@ -488,14 +460,16 @@ class SpotifyConnect extends utils.Adapter {
         }
         if (!ok) {
             this.log.warn(`Command ${key} not sent: Soloist is not ready`);
+        } else if (key.startsWith('control.') && STATES[key]?.role.startsWith('button')) {
+            void this.setState(key, false, true);
         }
     }
 
     // ---- Helpers -----------------------------------------------------------------------------
 
     private async createStates(): Promise<void> {
-        for (const ch of ['player', 'control', 'stream']) {
-            await this.setObjectNotExistsAsync(ch, { type: 'channel', common: { name: ch }, native: {} });
+        for (const [ch, name] of Object.entries(CHANNELS)) {
+            await this.extendObjectAsync(ch, { type: 'channel', common: { name }, native: {} });
         }
         for (const [id, d] of Object.entries(STATES)) {
             const common: ioBroker.StateCommon = {
