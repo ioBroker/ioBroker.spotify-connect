@@ -50,7 +50,10 @@
     "test:integration": "mocha test/unit.test.js --exit",
     "test": "npm run build && npm run test:package && npm run test:integration",
     "update-packages": "npx -y npm-check-updates -u",
-    "npm": "npm i --ignore-scripts"
+    "npm": "npm i --ignore-scripts",
+    "release-patch": "release-script patch --yes",
+    "release-minor": "release-script minor --yes",
+    "release-major": "release-script major --yes"
   },
   "bugs": {
     "url": "https://github.com/ioBroker/ioBroker.spotify-connect/issues"
