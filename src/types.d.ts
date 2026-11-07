@@ -1,12 +1,13 @@
 declare global {
     namespace ioBroker {
         interface AdapterConfig {
-            soloistPath: string;
             apiKey: string;
             deviceName: string;
             streamPort: number;
+            streamHost: string;
+            apiPort: number;
             format: 'mp3' | 'flac';
-            targets: { id: string }[];
+            targets: { id: string; enabled?: boolean }[];
             stopAfterSec: number;
         }
     }

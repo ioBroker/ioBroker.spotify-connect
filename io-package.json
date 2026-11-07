@@ -5,17 +5,20 @@
     "news": {
       "0.0.1": {
         "en": "initial release",
-        "de": "Erstveröffentlichung"
+        "de": "Erstveröffentlichung",
+        "ru": "первый выпуск"
       }
     },
     "title": "Spotify Connect",
     "titleLang": {
       "en": "Spotify Connect",
-      "de": "Spotify Connect"
+      "de": "Spotify Connect",
+      "ru": "Spotify Connect"
     },
     "desc": {
       "en": "Spotify Connect receiver based on Spotify Soloist. Streams to any player with a media.url state (e.g. ioBroker.assistant satellites)",
-      "de": "Spotify-Connect-Empfänger auf Basis von Spotify Soloist. Streamt an jeden Player mit media.url-State (z. B. Satelliten von ioBroker.assistant)"
+      "de": "Spotify-Connect-Empfänger auf Basis von Spotify Soloist. Streamt an jeden Player mit media.url-State (z. B. Satelliten von ioBroker.assistant)",
+      "ru": "Приёмник Spotify Connect на базе Spotify Soloist. Передаёт звук на любой плеер с состоянием media.url"
     },
     "authors": [
       "ioBroker GmbH <Iobroker.gmbh@gmail.com>"
@@ -49,13 +52,26 @@
       {
         "admin": ">=6.17.14"
       }
+    ],
+    "osDependencies": {
+      "linux": [
+        "pipewire",
+        "pipewire-pulse",
+        "wireplumber",
+        "pulseaudio-utils",
+        "ffmpeg"
+      ]
+    },
+    "os": [
+      "linux"
     ]
   },
   "native": {
-    "soloistPath": "/opt/iobroker/soloist/soloist",
     "apiKey": "",
     "deviceName": "ioBroker",
     "streamPort": 8097,
+    "streamHost": "",
+    "apiPort": 9090,
     "format": "mp3",
     "targets": [],
     "stopAfterSec": 30
@@ -89,5 +105,38 @@
   ],
   "protectedNative": [
     "apiKey"
+  ],
+  "notifications": [
+    {
+      "scope": "spotify-connect",
+      "name": {
+        "en": "Spotify Connect",
+        "de": "Spotify Connect",
+        "ru": "Spotify Connect"
+      },
+      "description": {
+        "en": "Notifications of the Spotify Connect adapter",
+        "de": "Meldungen des Spotify-Connect-Adapters",
+        "ru": "Сообщения адаптера Spotify Connect"
+      },
+      "categories": [
+        {
+          "category": "soloistUpdate",
+          "severity": "alert",
+          "limit": 1,
+          "regex": [],
+          "name": {
+            "en": "Soloist update failed",
+            "de": "Soloist-Update fehlgeschlagen",
+            "ru": "Не удалось обновить Soloist"
+          },
+          "description": {
+            "en": "Spotify Soloist could not be updated and will stop working when the build expires.",
+            "de": "Spotify Soloist konnte nicht aktualisiert werden und funktioniert nach Ablauf des Builds nicht mehr.",
+            "ru": "Spotify Soloist не удалось обновить, после истечения срока сборки он перестанет работать."
+          }
+        }
+      ]
+    }
   ]
 }
