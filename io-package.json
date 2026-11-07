@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "spotify-connect",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "news": {
+      "0.1.3": {
+        "en": "Debian 12 / Raspberry Pi OS Bookworm: Soloist is started with a private glibc from Debian 13",
+        "de": "Debian 12/Raspberry Pi OS Bookworm: Soloist startet mit einer privaten Glibc von Debian 13",
+        "ru": "Книжный червь Debian 12/Raspberry Pi OS: Солист начинается с частного glibc из Debian 13",
+        "pt": "Debian 12/Raspberry Pi OS Bookworm: Soloist começa com uma glibc privada do Debian 13",
+        "nl": "Debian 12/Raspberry Pi OS Bookworm: Soloist is gestart met een private glibc van Debian 13",
+        "fr": "Debian 12/Raspberry Pi OS Bookworm : Soloist a été créé avec une glibc privée de Debian 13",
+        "it": "Debian 12/Raspberry Pi OS Bookworm: Soloist è avviato con un glibc privato di Debian 13",
+        "es": "Debian 12/Raspberry Pi OS Bookworm: Soloist empieza con una glibc privada de Debian 13",
+        "pl": "Debian 12/Raspberry Pi OS Bookworm: Soloist rozpoczyna się od prywatnego glibc z Debiana 13",
+        "uk": "Debian 12/Raspberry Pi ОС Книжковий черв'як: соліст запускається з приватного glibc з Debian 13",
+        "zh-cn": "Debian 12/Raspberry Pi OS Bookworm：Soloist 从 Debian 13 的私人 glibc 开始"
+      },
       "0.1.2": {
         "en": "Check glibc version on start: Soloist needs glibc 2.38+ (Debian 13, Ubuntu 24.04), not Debian 12\nLog the real reason when the downloaded Soloist binary does not start",
         "de": "Glibc beim Start prüfen: Soloist braucht Glibc 2.38+ (Debian 13, Ubuntu 24.04), nicht Debian 12\nLogge den wahren Grund, warum die Soloist-Binärdatei nicht startet",
