@@ -62,14 +62,22 @@ export class Soloist extends EventEmitter {
         this.stopping = false;
         const o = this.opts;
         const args = [
-            '-n', o.deviceName,
-            '-k', o.apiKey,
-            '-D', o.dataDir,
-            '-C', o.cacheDir,
-            '-z', '200',
-            '-d', o.sink,
-            '-i', String(o.initialVolume),
-            '-w', `127.0.0.1:${o.wsPort}`,
+            '-n',
+            o.deviceName,
+            '-k',
+            o.apiKey,
+            '-D',
+            o.dataDir,
+            '-C',
+            o.cacheDir,
+            '-z',
+            '200',
+            '-d',
+            o.sink,
+            '-i',
+            String(o.initialVolume),
+            '-w',
+            `127.0.0.1:${o.wsPort}`,
         ];
         this.log.info(`Starting Spotify Soloist as "${o.deviceName}"`);
         const p = spawn(o.binary, args, { env: o.env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -142,11 +150,13 @@ export class Soloist extends EventEmitter {
             this.emit('api', true);
             this.command('get_auth_state');
         });
-        ws.on('message', data => {
+        ws.on('message', (data: WebSocket.RawData) => {
+            const buf = Buffer.isBuffer(data) ? data : Array.isArray(data) ? Buffer.concat(data) : Buffer.from(data);
+            const text = buf.toString('utf8');
             try {
-                this.emit('message', JSON.parse(data.toString()));
+                this.emit('message', JSON.parse(text));
             } catch {
-                this.log.debug(`Invalid API message: ${data.toString()}`);
+                this.log.debug(`Invalid API message: ${text}`);
             }
         });
         ws.on('error', err => this.log.debug(`API error: ${err.message}`));

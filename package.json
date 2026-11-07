@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "Spotify Connect receiver for ioBroker based on Spotify Soloist; streams to any player with a media.url state",
   "author": {
-    "name": "ioBroker GmbH",
-    "email": "Iobroker.gmbh@gmail.com"
+    "name": "Denis Haev",
+    "email": "dogafox@gmail.com"
   },
   "homepage": "https://github.com/ioBroker/ioBroker.spotify-connect",
   "license": "MIT",
@@ -21,18 +21,19 @@
     "url": "git+https://github.com/ioBroker/ioBroker.spotify-connect.git"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.19.0"
   },
   "dependencies": {
-    "@iobroker/adapter-core": "^3.2.3",
-    "ws": "^8.18.0"
+    "@iobroker/adapter-core": "^3.4.3",
+    "ws": "^8.22.1"
   },
   "devDependencies": {
     "@iobroker/testing": "^6.3.1",
-    "@types/node": "^20.17.0",
-    "@types/ws": "^8.5.12",
-    "mocha": "^12.0.3",
-    "typescript": "^5.6.0"
+    "@iobroker/eslint-config": "^2.3.4",
+    "@tsconfig/node22": "^22.0.6",
+    "@types/node": "^22.20.5",
+    "@types/ws": "^8.18.2",
+    "typescript": "~6.0.3"
   },
   "main": "build/main.js",
   "files": [
@@ -44,9 +45,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "watch": "tsc -p tsconfig.json --watch",
-    "test:unit": "mocha test/unit.test.js --exit",
+    "lint": "eslint -c eslint.config.mjs",
     "test:package": "mocha test/package.js --exit",
-    "test": "npm run build && npm run test:unit && npm run test:package"
+    "test:integration": "mocha unit.test.js --exit",
+    "test": "npm run build && npm run test:package && npm run test:integration",
+    "update-packages": "npx -y npm-check-updates -u",
+    "npm": "npm i --ignore-scripts"
   },
   "bugs": {
     "url": "https://github.com/ioBroker/ioBroker.spotify-connect/issues"

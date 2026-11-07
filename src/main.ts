@@ -2,13 +2,7 @@ import * as utils from '@iobroker/adapter-core';
 import { promises as fs } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
-import {
-    downloadSoloist,
-    ensureOsPackages,
-    getRemoteInfo,
-    getVersion,
-    type SoloistVersion,
-} from './lib/installer';
+import { downloadSoloist, ensureOsPackages, getRemoteInfo, getVersion, type SoloistVersion } from './lib/installer';
 import { PipeWire, SINK_NAME } from './lib/pipewire';
 import { EXIT_EXPIRED, Soloist, type SoloistEntity } from './lib/soloist';
 import { CHANNELS, STATES } from './lib/states';
@@ -68,7 +62,9 @@ class SpotifyConnect extends utils.Adapter {
         try {
             const missing = await ensureOsPackages(this.log);
             if (missing.length) {
-                this.log.error(`Missing packages that could not be installed automatically: ${missing.join(', ')}. Please run: sudo apt-get install ${missing.join(' ')}`);
+                this.log.error(
+                    `Missing packages that could not be installed automatically: ${missing.join(', ')}. Please run: sudo apt-get install ${missing.join(' ')}`,
+                );
                 return;
             }
         } catch (e) {
@@ -96,7 +92,12 @@ class SpotifyConnect extends utils.Adapter {
             await this.pipewire.start();
 
             this.stream = new StreamServer(
-                { port: c.streamPort || 8097, format: c.format || 'mp3', source: `${SINK_NAME}.monitor`, env: this.pipewire.env },
+                {
+                    port: c.streamPort || 8097,
+                    format: c.format || 'mp3',
+                    source: `${SINK_NAME}.monitor`,
+                    env: this.pipewire.env,
+                },
                 this.log,
                 n => void this.setState('stream.clients', n, true),
             );
@@ -131,7 +132,11 @@ class SpotifyConnect extends utils.Adapter {
             return;
         }
         await this.setState('info.soloistVersion', this.soloistVer.version, true);
-        await this.setState('info.buildDate', new Date(this.soloistVer.buildTimestamp * 1000).toISOString().slice(0, 10), true);
+        await this.setState(
+            'info.buildDate',
+            new Date(this.soloistVer.buildTimestamp * 1000).toISOString().slice(0, 10),
+            true,
+        );
         await this.setState('info.expiresInDays', this.daysLeft(), true);
     }
 
@@ -158,7 +163,9 @@ class SpotifyConnect extends utils.Adapter {
             } catch {
                 // first check after a manual installation
             }
-            const changed = (remote.etag && remote.etag !== known.etag) || (remote.lastModified && remote.lastModified !== known.lastModified);
+            const changed =
+                (remote.etag && remote.etag !== known.etag) ||
+                (remote.lastModified && remote.lastModified !== known.lastModified);
             if (!changed && !force) {
                 if (this.daysLeft() <= UPDATE_FROM_DAYS) {
                     this.log.info(`Soloist build expires in ${this.daysLeft()} days, no newer build available yet`);
@@ -180,7 +187,9 @@ class SpotifyConnect extends utils.Adapter {
             await this.setState('info.updateError', msg, true);
             if (this.daysLeft() <= 14) {
                 this.log.warn(`Soloist update failed (${msg}). The build expires in ${this.daysLeft()} days.`);
-                await this.notify(`Spotify Soloist could not be updated (${msg}). The current build expires in ${this.daysLeft()} days. Please check the internet connection.`);
+                await this.notify(
+                    `Spotify Soloist could not be updated (${msg}). The current build expires in ${this.daysLeft()} days. Please check the internet connection.`,
+                );
             } else {
                 this.log.debug(`Update check failed: ${msg}`);
             }
@@ -272,7 +281,9 @@ class SpotifyConnect extends utils.Adapter {
                     if (loggedIn) {
                         this.log.info(`Spotify Connect device "${msg.device_name}" is ready`);
                     } else {
-                        this.log.info(`Waiting for login: open the Spotify app and select "${msg.device_name}" as device`);
+                        this.log.info(
+                            `Waiting for login: open the Spotify app and select "${msg.device_name}" as device`,
+                        );
                     }
                 }
                 this.loggedIn = loggedIn;
@@ -323,9 +334,17 @@ class SpotifyConnect extends utils.Adapter {
     private async setItem(item?: SoloistEntity): Promise<void> {
         const d = item?.decorations;
         const covers = d?.visual_identity?.cover || [];
-        const cover = (covers.find(c => c.size === 'large') || covers.find(c => c.size === 'xlarge') || covers[0])?.url || '';
+        const cover =
+            (covers.find(c => c.size === 'large') || covers.find(c => c.size === 'xlarge') || covers[0])?.url || '';
         await this.setState('player.title', d?.identity?.name || '', true);
-        await this.setState('player.artist', (d?.creators || []).map(c => c.entity?.decorations?.identity?.name).filter(Boolean).join(', '), true);
+        await this.setState(
+            'player.artist',
+            (d?.creators || [])
+                .map(c => c.entity?.decorations?.identity?.name)
+                .filter(Boolean)
+                .join(', '),
+            true,
+        );
         await this.setState('player.album', d?.parent?.entity?.decorations?.identity?.name || '', true);
         await this.setState('player.cover', cover, true);
         await this.setState('player.uri', item?.uri || '', true);

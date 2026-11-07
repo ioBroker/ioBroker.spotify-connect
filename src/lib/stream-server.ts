@@ -67,7 +67,9 @@ export class StreamServer {
             res.writeHead(404).end();
             return;
         }
-        this.log.debug(`${req.method} ${req.url} from ${req.socket.remoteAddress} (${req.headers['user-agent'] || ''})`);
+        this.log.debug(
+            `${req.method} ${req.url} from ${req.socket.remoteAddress} (${req.headers['user-agent'] || ''})`,
+        );
         res.writeHead(200, {
             'Content-Type': CONTENT_TYPE[this.opts.format],
             'Cache-Control': 'no-cache, no-store',
@@ -130,9 +132,19 @@ export class StreamServer {
                 ? ['-c:a', 'flac', '-f', 'flac']
                 : ['-c:a', 'libmp3lame', '-b:a', '256k', '-f', 'mp3'];
         const args = [
-            '-hide_banner', '-loglevel', 'error',
-            '-f', 'pulse', '-fragment_size', '4096', '-i', this.opts.source,
-            '-ac', '2', '-ar', '44100',
+            '-hide_banner',
+            '-loglevel',
+            'error',
+            '-f',
+            'pulse',
+            '-fragment_size',
+            '4096',
+            '-i',
+            this.opts.source,
+            '-ac',
+            '2',
+            '-ar',
+            '44100',
             ...codec,
             'pipe:1',
         ];

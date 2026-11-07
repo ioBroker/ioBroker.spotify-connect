@@ -124,7 +124,10 @@ export async function getRemoteInfo(): Promise<RemoteInfo> {
  * Downloads the current Soloist build from Spotify into <dir>/soloist. The new binary is verified
  * before it replaces the old one; the previous binary is kept as soloist.bak.
  */
-export async function downloadSoloist(dir: string, log: InstallerLog): Promise<{ version: SoloistVersion; remote: RemoteInfo }> {
+export async function downloadSoloist(
+    dir: string,
+    log: InstallerLog,
+): Promise<{ version: SoloistVersion; remote: RemoteInfo }> {
     await fs.mkdir(dir, { recursive: true });
     const tmp = join(dir, 'download');
     await fs.rm(tmp, { recursive: true, force: true });
@@ -163,6 +166,8 @@ export async function downloadSoloist(dir: string, log: InstallerLog): Promise<{
     await fs.copyFile(newBin, target);
     await fs.chmod(target, 0o755);
     await fs.rm(tmp, { recursive: true, force: true });
-    log.info(`Spotify Soloist ${version.version} installed (build ${new Date(version.buildTimestamp * 1000).toISOString().slice(0, 10)})`);
+    log.info(
+        `Spotify Soloist ${version.version} installed (build ${new Date(version.buildTimestamp * 1000).toISOString().slice(0, 10)})`,
+    );
     return { version, remote };
 }

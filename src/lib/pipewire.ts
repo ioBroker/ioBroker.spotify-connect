@@ -78,7 +78,12 @@ export class PipeWire {
         for (let i = 0; i < 10; i++) {
             const res = await run(
                 'pactl',
-                ['load-module', 'module-null-sink', `sink_name=${SINK_NAME}`, 'sink_properties=device.description=SpotifyConnect'],
+                [
+                    'load-module',
+                    'module-null-sink',
+                    `sink_name=${SINK_NAME}`,
+                    'sink_properties=device.description=SpotifyConnect',
+                ],
                 { env: this.env },
             );
             if (res.code === 0) {
