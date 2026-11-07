@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "spotify-connect",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "news": {
+      "0.1.2": {
+        "en": "Check glibc version on start: Soloist needs glibc 2.38+ (Debian 13, Ubuntu 24.04), not Debian 12\nLog the real reason when the downloaded Soloist binary does not start",
+        "de": "Glibc beim Start prüfen: Soloist braucht Glibc 2.38+ (Debian 13, Ubuntu 24.04), nicht Debian 12\nLogge den wahren Grund, warum die Soloist-Binärdatei nicht startet",
+        "ru": "Проверьте версию glibc при запуске: для Soloist нужна версия glibc 2.38+ (Debian 13, Ubuntu 24.04), а не Debian 12\nЗапишите настоящую причину, по которой загруженный двоичный файл Soloist не запускается",
+        "pt": "Comece com a glibc: Soloist precisa da glibc 2.38+ (Debian 13, Ubuntu 24.04), não 12\nRegistre o motivo real do binário Soloist baixado não iniciar",
+        "nl": "Controleer de glibc-versie bij het opstarten: Soloist heeft glibc 2.38+ nodig (Debian 13, Ubuntu 24.04), niet Debian 12\nLog de echte reden in waarom het gedownloade binaire bestand voor Soloist niet start",
+        "fr": "Vérifiez la glibc au début : Soloist a besoin de la glibc 2.38+ (Debian 13, Ubuntu 24.04), pas de Debian 12\nNotez pourquoi le binaire Soloist téléchargé ne démarre pas",
+        "it": "Controlli glibc all'avvio: Soloist serve glibc 2.38+ (Debian 13, Ubuntu 24.04), non Debian 12\nSegna il vero motivo per cui il binario Soloist scaricato non parte",
+        "es": "Compruebe la versión glibc al inicio: Solist necesita glibc 2.38+ (Debian 13, Ubuntu 24.04), no Debian 12\nRegistre la verdadera razón por la que el binario de Soloist descargado no comienza",
+        "pl": "Sprawdź wersję glibc na początku: Solista potrzebuje glibc 2.38+ (Debian 13, Ubuntu 24.04), a nie Debian 12\nZaloguj prawdziwy powód, gdy pobrany plik binarny Soloist nie uruchamia się",
+        "uk": "Перевірте версію glibc під час запуску: Солісту потрібен glibc 2.38+ (Debian 13, Ubuntu 24.04), а не Debian 12\nЗапишіть справжню причину, коли завантажений бінарний файл Soloist не запускається",
+        "zh-cn": "启动时查看 glibc 版本：Soloist 需要的是 glibc 2.38+（Debian 13、Ubuntu 24.04），而不是 Debian 12\n记录下载的 Soloist 二进制文件无法启动的真正原因"
+      },
       "0.1.1": {
         "en": "Updated packages",
         "de": "Neue Pakete",
