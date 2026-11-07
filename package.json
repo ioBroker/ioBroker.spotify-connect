@@ -47,7 +47,7 @@
     "watch": "tsc -p tsconfig.json --watch",
     "lint": "eslint -c eslint.config.mjs",
     "test:package": "mocha test/package.js --exit",
-    "test:integration": "mocha unit.test.js --exit",
+    "test:integration": "mocha test/unit.test.js --exit",
     "test": "npm run build && npm run test:package && npm run test:integration",
     "update-packages": "npx -y npm-check-updates -u",
     "npm": "npm i --ignore-scripts"

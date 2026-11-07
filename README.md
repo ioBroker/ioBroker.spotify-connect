@@ -6,7 +6,7 @@
 
 **Spotify Connect receiver for ioBroker.** The adapter appears as a speaker in the Spotify app on your phone or PC.
 Whatever you play there is streamed over HTTP to any player in ioBroker that accepts a URL, for example
-the satellites of ioBroker.assistant (ThirdReality Voice & Music Assistant), Dune HD players or other
+the satellites of `ioBroker.assistant` (ThirdReality Voice & Music Assistant), Dune HD players or other
 devices with a `media.url` state.
 
 It is based on [Spotify Soloist](https://developer.spotify.com/documentation/soloist), the official headless
@@ -44,18 +44,18 @@ The same instructions with direct links are shown in the instance settings.
 
 ## Configuration
 
-| Tab | Setting | Description |
-|---|---|---|
-| Spotify | Soloist API key | Key from the Soloist API key page, stored encrypted |
-| Spotify | Device name | Name shown in the Spotify app, e.g. "Living room" |
-| Players | Players | States with role `media.url` that receive the stream URL while you play |
-| Players | Stop players after pause | Seconds after a pause until the players are stopped (default 30) |
-| Advanced | Address | Address the players use to reach ioBroker. Empty = detected automatically |
-| Advanced | Stream port | HTTP port of the stream (default 8097) |
-| Advanced | Stream format | MP3 256 kbit/s or FLAC |
-| Advanced | Local Soloist API port | Port of the Soloist WebSocket API on 127.0.0.1 (default 9090). Must differ per instance |
+| Tab      | Setting                  | Description                                                                             |
+|----------|--------------------------|-----------------------------------------------------------------------------------------|
+| Spotify  | Soloist API key          | Key from the Soloist API key page, stored encrypted                                     |
+| Spotify  | Device name              | Name shown in the Spotify app, e.g. "Living room"                                       |
+| Players  | Players                  | States with role `media.url` that receive the stream URL while you play                 |
+| Players  | Stop players after pause | Seconds after a pause until the players are stopped (default 30)                        |
+| Advanced | Address                  | Address the players use to reach ioBroker. Empty = detected automatically               |
+| Advanced | Stream port              | HTTP port of the stream (default 8097)                                                  |
+| Advanced | Stream format            | MP3 256 kbit/s or FLAC                                                                  |
+| Advanced | Local Soloist API port   | Port of the Soloist WebSocket API on 127.0.0.1 (default 9090). Must differ per instance |
 
-For a ThirdReality speaker in ioBroker.assistant use
+For a ThirdReality speaker in `ioBroker.assistant` use
 `assistant.0.satellites.<Name>.controls.linux_voice_assistant_media_player.url`.
 
 On the first use open the Spotify app, tap the device icon and select the device name. This logs Soloist into
@@ -65,24 +65,24 @@ Several rooms: create one instance per Spotify Connect device, each with its own
 
 ## States
 
-| State | Description |
-|---|---|
-| `info.connection` | Soloist runs and is logged in to Spotify |
-| `info.loggedIn`, `info.active` | Logged in / this is the active Spotify Connect device |
-| `info.soloistVersion`, `info.buildDate`, `info.expiresInDays` | Installed Soloist build and remaining lifetime |
-| `info.lastUpdateCheck`, `info.updateError` | Result of the last update check |
-| `player.status` | `idle`, `playing`, `paused` or `buffering` |
-| `player.title`, `player.artist`, `player.album`, `player.cover` | Current track |
-| `player.duration`, `player.elapsed` | Duration and position in seconds |
-| `player.context`, `player.uri` | Playlist or album, Spotify URI of the track |
-| `player.shuffle`, `player.repeat` | Playback options |
-| `control.play`, `control.pause`, `control.next`, `control.previous` | Buttons |
-| `control.volume` | Volume 0 to 100 |
-| `control.seek` | Jump to position (seconds) |
-| `control.shuffle`, `control.repeat` | Shuffle on/off, repeat `off`, `context` or `track` |
-| `control.playUri` | Play a Spotify URI (track, album, playlist, episode) |
-| `control.activate` | Make this the active device |
-| `stream.url`, `stream.clients` | Stream URL and number of connected players |
+| State                                                               | Description                                           |
+|---------------------------------------------------------------------|-------------------------------------------------------|
+| `info.connection`                                                   | Soloist runs and is logged in to Spotify              |
+| `info.loggedIn`, `info.active`                                      | Logged in / this is the active Spotify Connect device |
+| `info.soloistVersion`, `info.buildDate`, `info.expiresInDays`       | Installed Soloist build and remaining lifetime        |
+| `info.lastUpdateCheck`, `info.updateError`                          | Result of the last update check                       |
+| `player.status`                                                     | `idle`, `playing`, `paused` or `buffering`            |
+| `player.title`, `player.artist`, `player.album`, `player.cover`     | Current track                                         |
+| `player.duration`, `player.elapsed`                                 | Duration and position in seconds                      |
+| `player.context`, `player.uri`                                      | Playlist or album, Spotify URI of the track           |
+| `player.shuffle`, `player.repeat`                                   | Playback options                                      |
+| `control.play`, `control.pause`, `control.next`, `control.previous` | Buttons                                               |
+| `control.volume`                                                    | Volume 0 to 100                                       |
+| `control.seek`                                                      | Jump to position (seconds)                            |
+| `control.shuffle`, `control.repeat`                                 | Shuffle on/off, repeat `off`, `context` or `track`    |
+| `control.playUri`                                                   | Play a Spotify URI (track, album, playlist, episode)  |
+| `control.activate`                                                  | Make this the active device                           |
+| `stream.url`, `stream.clients`                                      | Stream URL and number of connected players            |
 
 ## Soloist updates
 
