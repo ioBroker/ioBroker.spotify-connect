@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
+import { soloistCommand } from './installer';
 import { sleep } from './run';
 
 /** Spotify Soloist exits with this code when its build has expired. */
@@ -8,6 +9,8 @@ export const EXIT_EXPIRED = 10;
 
 export interface SoloistOptions {
     binary: string;
+    /** Folder of the private glibc, null to start the binary directly */
+    runtime: string | null;
     deviceName: string;
     apiKey: string;
     dataDir: string;
@@ -80,7 +83,8 @@ export class Soloist extends EventEmitter {
             `127.0.0.1:${o.wsPort}`,
         ];
         this.log.info(`Starting Spotify Soloist as "${o.deviceName}"`);
-        const p = spawn(o.binary, args, { env: o.env, stdio: ['ignore', 'pipe', 'pipe'] });
+        const c = soloistCommand(o.binary, o.runtime);
+        const p = spawn(c.cmd, [...c.args, ...args], { env: o.env, stdio: ['ignore', 'pipe', 'pipe'] });
         this.proc = p;
 
         const onLine = (data: Buffer): void => {

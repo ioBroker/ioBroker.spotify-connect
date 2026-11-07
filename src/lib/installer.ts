@@ -1,5 +1,5 @@
 import { createWriteStream, existsSync, promises as fs } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { cpus, release } from 'node:os';
@@ -18,10 +18,35 @@ const DOWNLOAD_BASE = 'https://soloist-builds.spotifycdn.com';
 /** Builds are valid for 90 days after their build date (documented by Spotify). */
 export const BUILD_LIFETIME_DAYS = 90;
 /**
- * Oldest glibc the Soloist builds run on. All builds (x86_64, arm64, arm32) link against
- * GLIBC_2.38 symbols (__isoc23_strtol, strlcpy), so Debian 12 / Raspberry Pi OS Bookworm (2.36) cannot run them.
+ * Oldest glibc the Soloist builds run on directly. All builds (x86_64, arm64, arm32) link against
+ * GLIBC_2.38 symbols (__isoc23_strtol & co, fmodf), so Debian 12 / Raspberry Pi OS Bookworm (2.36) cannot start
+ * them with the system loader. On such systems Soloist is started with a private glibc from Debian 13, see
+ * {@link ensureGlibcRuntime}.
  */
 export const MIN_GLIBC = '2.38';
+
+/** Debian suite whose glibc is used as private runtime on older systems. */
+const RUNTIME_SUITE = 'trixie';
+const DEBIAN_MIRROR = 'https://deb.debian.org/debian';
+const MADISON_URL = 'https://api.ftp-master.debian.org/madison';
+/**
+ * Debian packages that make up the private runtime. Soloist needs libc, libm, libpthread, libdl, librt
+ * (all in libc6) and libatomic. The fallback versions are used if the Debian API cannot be reached.
+ */
+const RUNTIME_PACKAGES: { pkg: string; source: string; fallback: string }[] = [
+    { pkg: 'libc6', source: 'glibc', fallback: '2.41-12+deb13u4' },
+    { pkg: 'libatomic1', source: 'gcc-14', fallback: '14.2.0-19' },
+];
+
+interface RuntimeArch {
+    /** Debian architecture name */
+    debian: string;
+    /** Name of the dynamic loader */
+    loader: string;
+}
+
+/** Folder of the private glibc inside the Soloist folder. */
+export const RUNTIME_DIR = 'glibc';
 
 export interface SoloistVersion {
     version: string;
@@ -45,6 +70,20 @@ export function soloistArch(): string {
             return 'arm32';
         case 'x64':
             return 'x86_64';
+        default:
+            throw new Error(`Spotify Soloist is not available for architecture "${process.arch}"`);
+    }
+}
+
+/** Maps Node's arch to Debian's architecture and loader name. */
+export function runtimeArch(): RuntimeArch {
+    switch (process.arch) {
+        case 'arm64':
+            return { debian: 'arm64', loader: 'ld-linux-aarch64.so.1' };
+        case 'arm':
+            return { debian: 'armhf', loader: 'ld-linux-armhf.so.3' };
+        case 'x64':
+            return { debian: 'amd64', loader: 'ld-linux-x86-64.so.2' };
         default:
             throw new Error(`Spotify Soloist is not available for architecture "${process.arch}"`);
     }
@@ -79,22 +118,141 @@ async function osName(): Promise<string> {
     }
 }
 
+/** True if the system glibc is too old for Soloist and the private runtime from Debian 13 is needed. */
+export function needsGlibcRuntime(): boolean {
+    const glibc = glibcVersion();
+    return !!glibc && compareVersions(glibc, MIN_GLIBC) < 0;
+}
+
 /**
  * Checks whether Soloist can run on this system at all. Returns an error message if not.
- * Nothing the adapter can install fixes these problems, only an OS upgrade.
+ * Nothing the adapter can install fixes these problems, only an OS change.
  */
 export async function checkSystem(): Promise<string | null> {
     if (process.platform !== 'linux') {
         return 'This adapter currently supports Linux only';
     }
-    const glibc = glibcVersion();
-    if (!glibc) {
+    if (!glibcVersion()) {
         return `Spotify Soloist needs a glibc based Linux (Debian, Ubuntu, Raspberry Pi OS). ${await osName()} is not supported (musl/Alpine?)`;
     }
-    if (compareVersions(glibc, MIN_GLIBC) < 0) {
-        return `Spotify Soloist needs glibc ${MIN_GLIBC} or newer, but ${await osName()} has glibc ${glibc}. Please upgrade to Debian 13 (Trixie), Raspberry Pi OS based on Trixie or Ubuntu 24.04 or newer`;
+    try {
+        runtimeArch();
+    } catch (e) {
+        return (e as Error).message;
+    }
+    if (needsGlibcRuntime() && !(await hasBinary('dpkg-deb'))) {
+        return `Spotify Soloist needs glibc ${MIN_GLIBC} or newer, but ${await osName()} has glibc ${glibcVersion()} and no "dpkg-deb" to install a newer one for Soloist only. Please upgrade to Debian 13 (Trixie), Raspberry Pi OS based on Trixie or Ubuntu 24.04 or newer`;
     }
     return null;
+}
+
+export interface SoloistCommand {
+    cmd: string;
+    /** Arguments that go before the Soloist arguments */
+    args: string[];
+}
+
+/**
+ * Command line to start Soloist. With a private runtime the binary is not executed directly but loaded
+ * by the newer dynamic loader, which then uses the newer libc. The system libraries stay untouched.
+ *
+ * @param binary path to the soloist binary
+ * @param runtime folder of the private glibc or null to start the binary directly
+ */
+export function soloistCommand(binary: string, runtime: string | null): SoloistCommand {
+    if (!runtime) {
+        return { cmd: binary, args: [] };
+    }
+    return {
+        cmd: join(runtime, runtimeArch().loader),
+        args: ['--library-path', runtime, '--argv0', binary, binary],
+    };
+}
+
+/** Path of a binary package in the Debian pool, e.g. pool/main/g/glibc/libc6_2.41-12_amd64.deb */
+export function debianPoolPath(pkg: string, source: string, version: string, arch: string): string {
+    const prefix = source.startsWith('lib') ? source.slice(0, 4) : source[0];
+    const fileVersion = version.replace(/^\d+:/, ''); // the epoch is not part of the file name
+    return `pool/main/${prefix}/${source}/${pkg}_${encodeURIComponent(fileVersion)}_${arch}.deb`;
+}
+
+type MadisonInfo = Record<string, Record<string, Record<string, { source?: string }>>>;
+
+/** Asks the Debian archive which versions of the runtime packages are current in the runtime suite. */
+async function resolveRuntimePackages(arch: string): Promise<{ pkg: string; source: string; version: string }[]> {
+    let info: MadisonInfo = {};
+    try {
+        const res = await fetch(
+            `${MADISON_URL}?package=${RUNTIME_PACKAGES.map(p => p.pkg).join('%20')}&s=${RUNTIME_SUITE}&a=${arch}&f=json`,
+            { signal: AbortSignal.timeout(30_000) },
+        );
+        if (res.ok) {
+            info = ((await res.json()) as MadisonInfo[])[0] || {};
+        }
+    } catch {
+        // use the fallback versions
+    }
+    return RUNTIME_PACKAGES.map(p => {
+        const found = Object.values(info[p.pkg] || {}).flatMap(suite => Object.entries(suite))[0];
+        return found
+            ? { pkg: p.pkg, source: found[1].source || p.source, version: found[0] }
+            : { pkg: p.pkg, source: p.source, version: p.fallback };
+    });
+}
+
+/**
+ * Makes sure a private glibc from Debian 13 is available in <dir>/glibc. It is only used to start Soloist,
+ * the system libraries are not touched. Returns the runtime folder.
+ */
+export async function ensureGlibcRuntime(dir: string, log: InstallerLog): Promise<string> {
+    const { debian, loader } = runtimeArch();
+    const runtime = join(dir, RUNTIME_DIR);
+    if (existsSync(join(runtime, loader)) && existsSync(join(runtime, 'libatomic.so.1'))) {
+        return runtime;
+    }
+    await fs.mkdir(dir, { recursive: true });
+    const tmp = join(dir, 'glibc-download');
+    await fs.rm(tmp, { recursive: true, force: true });
+    await fs.mkdir(join(tmp, 'root'), { recursive: true });
+
+    try {
+        const packages = await resolveRuntimePackages(debian);
+        log.info(
+            `glibc ${glibcVersion()} is too old for Spotify Soloist, installing ${packages.map(p => `${p.pkg} ${p.version}`).join(', ')} from Debian 13 for Soloist only`,
+        );
+        for (const p of packages) {
+            const url = `${DEBIAN_MIRROR}/${debianPoolPath(p.pkg, p.source, p.version, debian)}`;
+            log.debug(`Downloading ${url}`);
+            const res = await fetch(url, { signal: AbortSignal.timeout(300_000) });
+            if (!res.ok || !res.body) {
+                throw new Error(`Download of ${url} failed: HTTP ${res.status}`);
+            }
+            const deb = join(tmp, `${p.pkg}.deb`);
+            await pipeline(Readable.fromWeb(res.body as any), createWriteStream(deb));
+            const x = await run('dpkg-deb', ['-x', deb, join(tmp, 'root')]);
+            if (x.code !== 0) {
+                throw new Error(`Cannot unpack ${p.pkg}: ${(x.stderr || x.stdout).trim()}`);
+            }
+        }
+        // all libraries are in usr/lib/<triplet>, next to libc.so.6
+        const find = await run('find', [join(tmp, 'root'), '-name', 'libc.so.6', '-type', 'f']);
+        const libc = find.stdout.trim().split('\n')[0];
+        if (!libc) {
+            throw new Error('libc.so.6 not found in the Debian package');
+        }
+        const libDir = dirname(libc);
+        for (const file of [loader, 'libm.so.6', 'libatomic.so.1']) {
+            if (!existsSync(join(libDir, file))) {
+                throw new Error(`${file} not found in the Debian packages`);
+            }
+        }
+        await fs.writeFile(join(libDir, 'VERSION'), `${packages.map(p => `${p.pkg} ${p.version}`).join('\n')}\n`);
+        await fs.rm(runtime, { recursive: true, force: true });
+        await fs.rename(libDir, runtime);
+    } finally {
+        await fs.rm(tmp, { recursive: true, force: true });
+    }
+    return runtime;
 }
 
 export function soloistUrl(): string {
@@ -152,12 +310,21 @@ export function parseVersion(raw: string): SoloistVersion | null {
     };
 }
 
-/** Runs "soloist --version". On failure, error holds the reason (e.g. missing library or glibc version). */
-export async function probeBinary(binary: string): Promise<{ version: SoloistVersion | null; error: string }> {
+/**
+ * Runs "soloist --version". On failure, error holds the reason (e.g. missing library or glibc version).
+ *
+ * @param binary path to the soloist binary
+ * @param runtime folder of the private glibc or null
+ */
+export async function probeBinary(
+    binary: string,
+    runtime: string | null,
+): Promise<{ version: SoloistVersion | null; error: string }> {
     if (!existsSync(binary)) {
         return { version: null, error: 'binary not found' };
     }
-    const res = await run(binary, ['--version'], { timeout: 15_000 });
+    const c = soloistCommand(binary, runtime);
+    const res = await run(c.cmd, [...c.args, '--version'], { timeout: 15_000 });
     const version = parseVersion(res.stdout + res.stderr);
     if (version) {
         return { version, error: '' };
@@ -195,8 +362,8 @@ function cpuModel(): string {
     return cpus()[0]?.model?.trim() || 'unknown';
 }
 
-export async function getVersion(binary: string): Promise<SoloistVersion | null> {
-    return (await probeBinary(binary)).version;
+export async function getVersion(binary: string, runtime: string | null): Promise<SoloistVersion | null> {
+    return (await probeBinary(binary, runtime)).version;
 }
 
 export interface RemoteInfo {
@@ -218,6 +385,7 @@ export async function getRemoteInfo(): Promise<RemoteInfo> {
  */
 export async function downloadSoloist(
     dir: string,
+    runtime: string | null,
     log: InstallerLog,
 ): Promise<{ version: SoloistVersion; remote: RemoteInfo }> {
     await fs.mkdir(dir, { recursive: true });
@@ -245,7 +413,7 @@ export async function downloadSoloist(
         throw new Error('Archive does not contain a "soloist" binary');
     }
     await fs.chmod(newBin, 0o755);
-    const { version, error } = await probeBinary(newBin);
+    const { version, error } = await probeBinary(newBin, runtime);
     if (!version) {
         await fs.rm(tmp, { recursive: true, force: true });
         throw new Error(`Downloaded binary does not start on this system (${error})`);

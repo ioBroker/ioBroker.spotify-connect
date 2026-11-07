@@ -5,9 +5,13 @@ import { join } from 'node:path';
 import {
     checkSystem,
     downloadSoloist,
+    ensureGlibcRuntime,
     ensureOsPackages,
     getRemoteInfo,
     getVersion,
+    glibcVersion,
+    MIN_GLIBC,
+    needsGlibcRuntime,
     type SoloistVersion,
 } from './lib/installer';
 import { PipeWire, SINK_NAME } from './lib/pipewire';
@@ -27,6 +31,8 @@ class SpotifyConnect extends utils.Adapter {
     private stream?: StreamServer;
     private binary = '';
     private soloistDir = '';
+    /** Folder of the private glibc, null if the system glibc is new enough */
+    private runtime: string | null = null;
     private soloistVer: SoloistVersion | null = null;
     private updateTimer?: NodeJS.Timeout;
     private restartTimer?: NodeJS.Timeout;
@@ -87,8 +93,23 @@ class SpotifyConnect extends utils.Adapter {
             return;
         }
 
-        // 2. Soloist binary
-        this.soloistVer = await getVersion(this.binary);
+        // 2. Soloist binary (with a private glibc from Debian 13 if the system one is too old)
+        try {
+            if (needsGlibcRuntime()) {
+                this.runtime = await ensureGlibcRuntime(this.soloistDir, this.log);
+                this.log.info(
+                    `System glibc ${glibcVersion()} is older than ${MIN_GLIBC}, Soloist uses ${this.runtime}`,
+                );
+            }
+        } catch (e) {
+            this.log.error(
+                `Cannot install a newer glibc for Spotify Soloist: ${(e as Error).message}. Retrying in 1 hour.`,
+            );
+            await this.setState('info.updateError', (e as Error).message, true);
+            this.restartTimer = this.setTimeout(() => this.restartAdapter(), 3600_000) as any;
+            return;
+        }
+        this.soloistVer = await getVersion(this.binary, this.runtime);
         if (!this.soloistVer || this.daysLeft() <= 0) {
             try {
                 await this.install();
@@ -136,7 +157,7 @@ class SpotifyConnect extends utils.Adapter {
     }
 
     private async install(): Promise<void> {
-        const { version, remote } = await downloadSoloist(this.soloistDir, this.log);
+        const { version, remote } = await downloadSoloist(this.soloistDir, this.runtime, this.log);
         this.soloistVer = version;
         await fs.writeFile(join(this.soloistDir, 'remote.json'), JSON.stringify(remote));
         await this.setState('info.updateError', '', true);
@@ -232,6 +253,7 @@ class SpotifyConnect extends utils.Adapter {
         const s = new Soloist(
             {
                 binary: this.binary,
+                runtime: this.runtime,
                 deviceName: this.config.deviceName || 'ioBroker',
                 apiKey: this.config.apiKey,
                 dataDir: join(dataDir, 'data'),
