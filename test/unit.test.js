@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { parseVersion, soloistArch, soloistUrl, BUILD_LIFETIME_DAYS } = require('../build/lib/installer');
+const { parseVersion, soloistArch, soloistUrl, compareVersions, BUILD_LIFETIME_DAYS } = require('../build/lib/installer');
 const { STATES } = require('../build/lib/states');
 
 describe('installer', () => {
@@ -13,6 +13,14 @@ describe('installer', () => {
 
     it('returns null for unknown output', () => {
         assert.equal(parseVersion('command not found'), null);
+    });
+
+    it('compares glibc versions', () => {
+        assert.ok(compareVersions('2.36', '2.38') < 0);
+        assert.equal(compareVersions('2.38', '2.38'), 0);
+        assert.ok(compareVersions('2.41', '2.38') > 0);
+        assert.ok(compareVersions('3.0', '2.38') > 0);
+        assert.ok(compareVersions('2.38.1', '2.38') > 0);
     });
 
     it('builds the official download URL for this architecture', () => {

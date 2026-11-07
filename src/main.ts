@@ -2,7 +2,14 @@ import * as utils from '@iobroker/adapter-core';
 import { promises as fs } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
-import { downloadSoloist, ensureOsPackages, getRemoteInfo, getVersion, type SoloistVersion } from './lib/installer';
+import {
+    checkSystem,
+    downloadSoloist,
+    ensureOsPackages,
+    getRemoteInfo,
+    getVersion,
+    type SoloistVersion,
+} from './lib/installer';
 import { PipeWire, SINK_NAME } from './lib/pipewire';
 import { EXIT_EXPIRED, Soloist, type SoloistEntity } from './lib/soloist';
 import { CHANNELS, STATES } from './lib/states';
@@ -57,6 +64,14 @@ class SpotifyConnect extends utils.Adapter {
         this.binary = join(this.soloistDir, 'soloist');
         await fs.mkdir(join(dataDir, 'data'), { recursive: true });
         await fs.mkdir(join(dataDir, 'cache'), { recursive: true });
+
+        // 0. Can Soloist run here at all? An unsupported OS cannot be fixed by retrying.
+        const systemError = await checkSystem();
+        if (systemError) {
+            this.log.error(systemError);
+            await this.setState('info.updateError', systemError, true);
+            return;
+        }
 
         // 1. Debian packages
         try {

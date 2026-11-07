@@ -18,7 +18,14 @@ Spotify app  ->  Soloist  ->  PipeWire null sink  ->  HTTP stream  ->  media.url
 
 ## Requirements
 
-- Linux on arm64 (Raspberry Pi 3/4/5), armv7 or x86_64. Debian 12/13 or Raspberry Pi OS recommended.
+- Linux on arm64 (Raspberry Pi 3/4/5), armv7 or x86_64 with **glibc 2.38 or newer**: Debian 13 (Trixie),
+  Raspberry Pi OS based on Trixie, Ubuntu 24.04 or newer. Spotify's Soloist builds do **not** run on
+  Debian 12 / Raspberry Pi OS Bookworm (glibc 2.36) or on Alpine (musl). The adapter checks this on start
+  and logs an error instead of downloading.
+- Docker: use the official ioBroker image **v12 or newer** (Debian 13 Trixie). v11 and older are based on
+  Debian 12 and cannot run Soloist. Packages installed by the adapter are lost when the container is recreated,
+  so add them to the container environment:
+  `PACKAGES="pipewire pipewire-pulse wireplumber pulseaudio-utils ffmpeg"`.
 - A Spotify **Premium** account to create the Soloist API key. Free accounts can play on the device afterwards.
 - Internet access at least every few weeks (Soloist builds expire after 90 days, see below).
 
@@ -111,6 +118,10 @@ Spotify's official download server on your device.
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+### **WORK IN PROGRESS**
+- (@GermanBluefox) Check glibc version on start: Soloist needs glibc 2.38+ (Debian 13, Ubuntu 24.04), not Debian 12
+- (@GermanBluefox) Log the real reason when the downloaded Soloist binary does not start
+
 ### 0.1.1 (2026-11-07)
 - (@GermanBluefox) Updated packages
 

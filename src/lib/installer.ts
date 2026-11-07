@@ -2,7 +2,8 @@ import { createWriteStream, existsSync, promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { hasBinary, run } from './run';
+import { cpus, release } from 'node:os';
+import { hasBinary, run, type RunResult } from './run';
 
 /** Debian packages and the binary that proves each one is installed. */
 const OS_PACKAGES: { pkg: string; bin: string }[] = [
@@ -16,6 +17,11 @@ const OS_PACKAGES: { pkg: string; bin: string }[] = [
 const DOWNLOAD_BASE = 'https://soloist-builds.spotifycdn.com';
 /** Builds are valid for 90 days after their build date (documented by Spotify). */
 export const BUILD_LIFETIME_DAYS = 90;
+/**
+ * Oldest glibc the Soloist builds run on. All builds (x86_64, arm64, arm32) link against
+ * GLIBC_2.38 symbols (__isoc23_strtol, strlcpy), so Debian 12 / Raspberry Pi OS Bookworm (2.36) cannot run them.
+ */
+export const MIN_GLIBC = '2.38';
 
 export interface SoloistVersion {
     version: string;
@@ -42,6 +48,53 @@ export function soloistArch(): string {
         default:
             throw new Error(`Spotify Soloist is not available for architecture "${process.arch}"`);
     }
+}
+
+/** Compares dotted version strings: negative if a < b, 0 if equal, positive if a > b. */
+export function compareVersions(a: string, b: string): number {
+    const pa = a.split('.').map(n => parseInt(n, 10) || 0);
+    const pb = b.split('.').map(n => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const d = (pa[i] || 0) - (pb[i] || 0);
+        if (d) {
+            return d;
+        }
+    }
+    return 0;
+}
+
+/** glibc version of this system, or null if Node does not run on glibc (e.g. musl/Alpine). */
+export function glibcVersion(): string | null {
+    const header = (process.report?.getReport() as { header?: { glibcVersionRuntime?: string } } | undefined)?.header;
+    return header?.glibcVersionRuntime || null;
+}
+
+async function osName(): Promise<string> {
+    try {
+        const text = await fs.readFile('/etc/os-release', 'utf8');
+        const m = text.match(/^PRETTY_NAME="?([^"\n]+)"?/m);
+        return m ? m[1] : 'this system';
+    } catch {
+        return 'this system';
+    }
+}
+
+/**
+ * Checks whether Soloist can run on this system at all. Returns an error message if not.
+ * Nothing the adapter can install fixes these problems, only an OS upgrade.
+ */
+export async function checkSystem(): Promise<string | null> {
+    if (process.platform !== 'linux') {
+        return 'This adapter currently supports Linux only';
+    }
+    const glibc = glibcVersion();
+    if (!glibc) {
+        return `Spotify Soloist needs a glibc based Linux (Debian, Ubuntu, Raspberry Pi OS). ${await osName()} is not supported (musl/Alpine?)`;
+    }
+    if (compareVersions(glibc, MIN_GLIBC) < 0) {
+        return `Spotify Soloist needs glibc ${MIN_GLIBC} or newer, but ${await osName()} has glibc ${glibc}. Please upgrade to Debian 13 (Trixie), Raspberry Pi OS based on Trixie or Ubuntu 24.04 or newer`;
+    }
+    return null;
 }
 
 export function soloistUrl(): string {
@@ -99,12 +152,51 @@ export function parseVersion(raw: string): SoloistVersion | null {
     };
 }
 
-export async function getVersion(binary: string): Promise<SoloistVersion | null> {
+/** Runs "soloist --version". On failure, error holds the reason (e.g. missing library or glibc version). */
+export async function probeBinary(binary: string): Promise<{ version: SoloistVersion | null; error: string }> {
     if (!existsSync(binary)) {
-        return null;
+        return { version: null, error: 'binary not found' };
     }
     const res = await run(binary, ['--version'], { timeout: 15_000 });
-    return parseVersion(res.stdout + res.stderr);
+    const version = parseVersion(res.stdout + res.stderr);
+    if (version) {
+        return { version, error: '' };
+    }
+    const output = (res.stderr || res.stdout).trim().split('\n').slice(-3).join(' ').trim();
+    return { version: null, error: describeFailure(res, output) };
+}
+
+function describeFailure(res: RunResult, output: string): string {
+    const parts: string[] = [];
+    if (res.spawnError === 'EACCES') {
+        parts.push('permission denied - is the data directory mounted with "noexec"?');
+    } else if (res.spawnError === 'ENOENT') {
+        parts.push('cannot execute - ELF interpreter /lib/ld-linux* missing (musl/Alpine or wrong architecture?)');
+    } else if (res.spawnError) {
+        parts.push(res.spawnError);
+    }
+    if (res.signal === 'SIGILL') {
+        parts.push(`killed by SIGILL - the CPU (${cpuModel()}) does not support the instructions used by this build`);
+    } else if (res.signal === 'SIGSYS') {
+        parts.push('killed by SIGSYS - a system call is blocked (Docker seccomp profile or old kernel)');
+    } else if (res.signal) {
+        parts.push(`killed by ${res.signal}`);
+    }
+    if (output) {
+        parts.push(output);
+    }
+    if (!parts.length) {
+        parts.push(`exit code ${res.code}`);
+    }
+    return `${parts.join('; ')}; kernel ${release()}`;
+}
+
+function cpuModel(): string {
+    return cpus()[0]?.model?.trim() || 'unknown';
+}
+
+export async function getVersion(binary: string): Promise<SoloistVersion | null> {
+    return (await probeBinary(binary)).version;
 }
 
 export interface RemoteInfo {
@@ -153,9 +245,10 @@ export async function downloadSoloist(
         throw new Error('Archive does not contain a "soloist" binary');
     }
     await fs.chmod(newBin, 0o755);
-    const version = await getVersion(newBin);
+    const { version, error } = await probeBinary(newBin);
     if (!version) {
-        throw new Error('Downloaded binary does not start on this system');
+        await fs.rm(tmp, { recursive: true, force: true });
+        throw new Error(`Downloaded binary does not start on this system (${error})`);
     }
 
     const target = join(dir, 'soloist');
