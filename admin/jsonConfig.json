@@ -1,0 +1,20 @@
+{
+  "type": "panel",
+  "i18n": false,
+  "items": {
+    "soloistPath": { "type": "text", "label": "Path to the Soloist binary", "sm": 12, "md": 6 },
+    "apiKey": { "type": "password", "label": "Soloist API key (spak_...)", "help": "developer.spotify.com/dashboard/soloist", "sm": 12, "md": 6 },
+    "deviceName": { "type": "text", "label": "Spotify Connect device name", "sm": 12, "md": 4 },
+    "streamPort": { "type": "number", "label": "HTTP stream port", "min": 1, "max": 65535, "sm": 12, "md": 2 },
+    "format": { "type": "select", "label": "Stream format", "options": [{ "label": "MP3", "value": "mp3" }, { "label": "FLAC", "value": "flac" }], "sm": 12, "md": 2 },
+    "stopAfterSec": { "type": "number", "label": "Stop players after pause (s)", "min": 0, "sm": 12, "md": 2 },
+    "targets": {
+      "type": "table",
+      "label": "Players (states with role media.url)",
+      "sm": 12,
+      "items": [
+        { "type": "objectId", "attr": "id", "title": "media.url state", "width": "100%", "filterFunc": "obj.common && obj.common.role === 'media.url'" }
+      ]
+    }
+  }
+}

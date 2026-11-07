@@ -1,0 +1,93 @@
+{
+  "common": {
+    "name": "spotify-connect",
+    "version": "0.0.1",
+    "news": {
+      "0.0.1": {
+        "en": "initial release",
+        "de": "Erstveröffentlichung"
+      }
+    },
+    "title": "Spotify Connect",
+    "titleLang": {
+      "en": "Spotify Connect",
+      "de": "Spotify Connect"
+    },
+    "desc": {
+      "en": "Spotify Connect receiver based on Spotify Soloist. Streams to any player with a media.url state (e.g. ioBroker.assistant satellites)",
+      "de": "Spotify-Connect-Empfänger auf Basis von Spotify Soloist. Streamt an jeden Player mit media.url-State (z. B. Satelliten von ioBroker.assistant)"
+    },
+    "authors": [
+      "ioBroker GmbH <Iobroker.gmbh@gmail.com>"
+    ],
+    "keywords": [
+      "spotify",
+      "spotify connect",
+      "soloist",
+      "audio",
+      "speaker"
+    ],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "mode": "daemon",
+    "type": "multimedia",
+    "compact": true,
+    "connectionType": "local",
+    "dataSource": "push",
+    "adminUI": {
+      "config": "json"
+    },
+    "tier": 3,
+    "materialize": false,
+    "supportedMessages": {},
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.19"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=6.17.14"
+      }
+    ]
+  },
+  "native": {
+    "soloistPath": "/opt/iobroker/soloist/soloist",
+    "apiKey": "",
+    "deviceName": "ioBroker",
+    "streamPort": 8097,
+    "format": "mp3",
+    "targets": [],
+    "stopAfterSec": 30
+  },
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Information"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "role": "indicator.connected",
+        "name": "Soloist running and logged in",
+        "type": "boolean",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    }
+  ],
+  "encryptedNative": [
+    "apiKey"
+  ],
+  "protectedNative": [
+    "apiKey"
+  ]
+}

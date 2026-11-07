@@ -1,0 +1,38 @@
+{
+  "name": "iobroker.spotify-connect",
+  "version": "0.0.1",
+  "description": "Spotify Connect receiver for ioBroker based on Spotify Soloist; streams to any player with a media.url state",
+  "author": {
+    "name": "ioBroker GmbH",
+    "email": "Iobroker.gmbh@gmail.com"
+  },
+  "homepage": "https://github.com/ioBroker/ioBroker.spotify-connect",
+  "license": "MIT",
+  "keywords": ["ioBroker", "spotify", "spotify connect", "soloist", "audio", "speaker"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ioBroker/ioBroker.spotify-connect.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.2.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.6.0"
+  },
+  "main": "build/main.js",
+  "files": ["admin/", "build/", "io-package.json", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch"
+  },
+  "bugs": {
+    "url": "https://github.com/ioBroker/ioBroker.spotify-connect/issues"
+  },
+  "readmeFilename": "README.md"
+}
