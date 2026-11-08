@@ -9,7 +9,61 @@ const {
     runtimeArch,
     BUILD_LIFETIME_DAYS,
 } = require('../build/lib/installer');
+const { PlaybackClock } = require('../build/lib/playback-clock');
 const { STATES } = require('../build/lib/states');
+
+describe('PlaybackClock', () => {
+    let time;
+    let clock;
+
+    beforeEach(() => {
+        time = 1000;
+        clock = new PlaybackClock(() => time);
+    });
+
+    it('runs only while the playback is running', () => {
+        clock.setPosition(10_000);
+        time += 5000;
+        assert.equal(clock.seconds, 10);
+
+        clock.setRunning(true);
+        time += 5000;
+        assert.equal(clock.seconds, 15);
+
+        clock.setRunning(false);
+        time += 5000;
+        assert.equal(clock.seconds, 15);
+
+        clock.setRunning(true);
+        time += 1000;
+        assert.equal(clock.seconds, 16);
+    });
+
+    it('does not lose time if "running" is reported twice', () => {
+        clock.setRunning(true);
+        time += 3000;
+        clock.setRunning(true);
+        time += 3000;
+        assert.equal(clock.seconds, 6);
+    });
+
+    it('takes over a reported position during the playback', () => {
+        clock.setRunning(true);
+        time += 50_000;
+        clock.setPosition(120_000);
+        assert.equal(clock.seconds, 120);
+        time += 2000;
+        assert.equal(clock.seconds, 122);
+    });
+
+    it('does not run past the end of the track', () => {
+        clock.setDuration(10_000);
+        clock.setPosition(9000);
+        clock.setRunning(true);
+        time += 60_000;
+        assert.equal(clock.seconds, 10);
+    });
+});
 
 describe('installer', () => {
     it('parses the Soloist version line', () => {

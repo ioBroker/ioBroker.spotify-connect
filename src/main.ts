@@ -16,6 +16,7 @@ import {
     needsGlibcRuntime,
     type SoloistVersion,
 } from './lib/installer';
+import { PlaybackClock } from './lib/playback-clock';
 import { PulseServer, SINK_CHANNELS, SINK_RATE } from './lib/pulse-server';
 import { EXIT_EXPIRED, Soloist, type SoloistEntity } from './lib/soloist';
 import { CHANNELS, STATES } from './lib/states';
@@ -49,6 +50,10 @@ class SpotifyConnect extends utils.Adapter {
     private audioRestartTimer?: NodeJS.Timeout;
     private stopTimer?: NodeJS.Timeout;
     private noAudioTimer?: NodeJS.Timeout;
+    private elapsedTimer: ioBroker.Interval | undefined;
+    private readonly clock = new PlaybackClock();
+    private elapsed = -1;
+    private trackUri = '';
     private restartDelay = 5000;
     private pendingRestart = false;
     private unloading = false;
@@ -452,6 +457,13 @@ class SpotifyConnect extends utils.Adapter {
         await this.setState('player.cover', cover, true);
         await this.setState('player.uri', item?.uri || '', true);
         await this.setState('player.duration', Math.round((d?.playback?.duration_ms || 0) / 1000), true);
+
+        this.clock.setDuration(d?.playback?.duration_ms || 0);
+        if ((item?.uri || '') !== this.trackUri) {
+            this.trackUri = item?.uri || '';
+            this.clock.setPosition(0);
+        }
+        await this.writeElapsed();
     }
 
     private async setContext(ctx?: SoloistEntity): Promise<void> {
@@ -460,7 +472,27 @@ class SpotifyConnect extends utils.Adapter {
 
     private async setPosition(pos?: { position_ms: number }): Promise<void> {
         if (pos) {
-            await this.setState('player.elapsed', Math.round(pos.position_ms / 1000), true);
+            this.clock.setPosition(pos.position_ms);
+            await this.writeElapsed();
+        }
+    }
+
+    private async writeElapsed(): Promise<void> {
+        const seconds = this.clock.seconds;
+        if (seconds !== this.elapsed) {
+            this.elapsed = seconds;
+            await this.setState('player.elapsed', seconds, true);
+        }
+    }
+
+    private updateClock(): void {
+        const running = this.active && this.status === 'playing';
+        this.clock.setRunning(running);
+        if (running && !this.elapsedTimer) {
+            this.elapsedTimer = this.setInterval(() => void this.writeElapsed(), 1000);
+        } else if (!running && this.elapsedTimer) {
+            this.clearInterval(this.elapsedTimer);
+            this.elapsedTimer = undefined;
         }
     }
 
@@ -482,6 +514,7 @@ class SpotifyConnect extends utils.Adapter {
     private async onPlayback(status: string, active: boolean): Promise<void> {
         this.status = status || 'idle';
         this.active = active;
+        this.updateClock();
         await this.setState('player.status', this.status, true);
         await this.setState('info.active', active, true);
 
@@ -602,6 +635,9 @@ class SpotifyConnect extends utils.Adapter {
             this.log.warn(`Command ${key} not sent: Soloist is not ready`);
         } else if (key.startsWith('control.') && STATES[key]?.role.startsWith('button')) {
             void this.setState(key, false, true);
+        } else if (key === 'control.seek' || key === 'control.playUri') {
+            // Soloist reports no result for these, the other values are confirmed by its events
+            void this.setState(key, state.val, true);
         }
     }
 
@@ -663,6 +699,8 @@ class SpotifyConnect extends utils.Adapter {
     }
 
     private async cleanup(): Promise<void> {
+        this.clearInterval(this.elapsedTimer);
+        this.elapsedTimer = undefined;
         for (const t of [
             this.updateTimer,
             this.restartTimer,

@@ -127,6 +127,8 @@ Spotify's official download server on your device.
 - (@GermanBluefox) The stream starts faster: the first audio arrives after about 0.2 seconds
 - (@GermanBluefox) Warning in the log if Soloist reports playback but sends no audio. With log level debug, Soloist runs with `--verbose`
 - (@GermanBluefox) The selection dialog for the target state shows only states with the role `media.url`
+- (@GermanBluefox) `player.elapsed` counts every second during the playback, not only on events like pause or seek
+- (@GermanBluefox) `control.seek` and `control.playUri` are confirmed with `ack`
 
 ### 0.1.4 (2026-11-08)
 - (@GermanBluefox) No restart loop if PipeWire cannot run: the adapter restarts with a growing delay (30s up to 30 min)
