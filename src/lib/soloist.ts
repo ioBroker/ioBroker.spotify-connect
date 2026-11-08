@@ -43,6 +43,11 @@ export interface SoloistEntity {
 }
 
 /** Removes colors, time, level and source position from a line of the Soloist log. */
+/** The volume to start with: the saved one, so that a restart does not make the music louder. */
+export function initialVolume(saved: unknown): number {
+    return typeof saved === 'number' && saved >= 0 && saved <= 100 ? Math.round(saved) : 100;
+}
+
 export function cleanLogLine(line: string): string {
     return stripVTControlCharacters(line)
         .replace(/^[\d-]+ [\d:.]+:\s*/, '')

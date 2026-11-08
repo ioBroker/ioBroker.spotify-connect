@@ -187,7 +187,7 @@ export const STATES: Record<string, StateDef> = {
         min: 0,
         max: 100,
         unit: '%',
-        def: 0,
+        def: 100,
     },
     'control.seek': {
         name: { en: 'Seek to position', de: 'Zu Position springen', ru: 'Перейти к позиции' },

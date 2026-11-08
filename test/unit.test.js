@@ -12,6 +12,26 @@ const {
 const { PlaybackClock } = require('../build/lib/playback-clock');
 const { STATES } = require('../build/lib/states');
 
+describe('initial volume', () => {
+    const { initialVolume } = require('../build/lib/soloist');
+
+    it('keeps the saved volume, also a muted one', () => {
+        assert.equal(initialVolume(75), 75);
+        assert.equal(initialVolume(0), 0);
+        assert.equal(initialVolume(100), 100);
+    });
+
+    it('starts with full volume if there is no valid saved one', () => {
+        for (const value of [null, undefined, '75', -1, 101, NaN]) {
+            assert.equal(initialVolume(value), 100);
+        }
+    });
+
+    it('does not start muted on a new installation', () => {
+        assert.equal(STATES['control.volume'].def, 100);
+    });
+});
+
 describe('PlaybackClock', () => {
     let time;
     let clock;

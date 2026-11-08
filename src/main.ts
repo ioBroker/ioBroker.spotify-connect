@@ -18,7 +18,7 @@ import {
 } from './lib/installer';
 import { PlaybackClock } from './lib/playback-clock';
 import { PulseServer, SINK_CHANNELS, SINK_RATE } from './lib/pulse-server';
-import { EXIT_EXPIRED, Soloist, type SoloistEntity } from './lib/soloist';
+import { EXIT_EXPIRED, initialVolume, Soloist, type SoloistEntity } from './lib/soloist';
 import { CHANNELS, STATES } from './lib/states';
 import { StreamServer } from './lib/stream-server';
 
@@ -187,7 +187,7 @@ class SpotifyConnect extends utils.Adapter {
         await this.setState('stream.url', this.streamUrl, true);
         this.log.info(`Players will receive ${this.streamUrl}`);
 
-        this.startSoloist();
+        await this.startSoloist();
 
         // 4. Daily update check, first one shortly after start
         this.scheduleUpdateCheck(60_000);
@@ -286,7 +286,8 @@ class SpotifyConnect extends utils.Adapter {
         void this.soloist?.stop().then(() => this.startSoloist());
     }
 
-    private startSoloist(): void {
+    private async startSoloist(): Promise<void> {
+        const volume = await this.getStateAsync('control.volume').catch(() => null);
         if (this.unloading || !this.pulse) {
             return;
         }
@@ -300,7 +301,7 @@ class SpotifyConnect extends utils.Adapter {
                 dataDir: join(dataDir, 'data'),
                 cacheDir: join(dataDir, 'cache'),
                 wsPort: this.config.apiPort || 9090,
-                initialVolume: 100,
+                initialVolume: initialVolume(volume?.val),
                 verbose: this.log.level === 'debug' || this.log.level === 'silly',
                 env: this.pulse.env,
             },
@@ -328,7 +329,7 @@ class SpotifyConnect extends utils.Adapter {
             } else {
                 this.log.warn(`Soloist exited with code ${code}, restarting in ${this.restartDelay / 1000}s`);
             }
-            this.restartTimer = this.setTimeout(() => this.startSoloist(), this.restartDelay) as any;
+            this.restartTimer = this.setTimeout(() => void this.startSoloist(), this.restartDelay) as any;
             this.restartDelay = Math.min(this.restartDelay * 2, 300_000);
         });
         s.start();
