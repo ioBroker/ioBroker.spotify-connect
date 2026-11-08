@@ -34,7 +34,7 @@ Everything else is set up by the adapter:
 - the only system package, `libpulse0`, is installed with `sudo apt-get`, which standard ioBroker installations
   allow. Soloist loads this client library at runtime,
 - ffmpeg comes with the npm package `ffmpeg-static`. Its binary is downloaded from GitHub during the installation.
-  If that fails, an `ffmpeg` installed on the system is used,
+  If that fails, an `ffmpeg` of the system is used and installed with `sudo apt-get` if necessary,
 - Spotify Soloist is downloaded from Spotify's servers on first start,
 - the adapter contains a small PulseAudio server for exactly one purpose: it takes the audio from Soloist and
   passes it to ffmpeg. No audio system is started, it needs no login session and does not touch sound cards or

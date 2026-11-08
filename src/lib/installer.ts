@@ -310,19 +310,16 @@ export async function findFfmpeg(log: InstallerLog): Promise<string | null> {
 }
 
 /**
- * Installs the missing Debian package with "sudo -n apt-get". Standard ioBroker installations allow this
- * without password. Returns the list of packages that are still missing.
+ * Installs a Debian package with "sudo -n apt-get". Standard ioBroker installations allow this without password.
+ * Whether it worked has to be checked by the caller.
  */
-export async function ensureOsPackages(log: InstallerLog): Promise<string[]> {
+export async function aptInstall(pkg: string, log: InstallerLog): Promise<void> {
     if (process.platform !== 'linux') {
         throw new Error('This adapter currently supports Linux only');
     }
-    if (hasPulseLibrary()) {
-        return [];
-    }
-    log.info(`Installing missing package: ${PULSE_PACKAGE}`);
+    log.info(`Installing missing package: ${pkg}`);
     const env = { ...process.env, DEBIAN_FRONTEND: 'noninteractive' };
-    const install = ['-n', 'apt-get', 'install', '-y', '--no-install-recommends', PULSE_PACKAGE];
+    const install = ['-n', 'apt-get', 'install', '-y', '--no-install-recommends', pkg];
     let res = await run('sudo', install, { env });
     if (res.code !== 0 && /Unable to locate|has no installation candidate/i.test(res.stderr + res.stdout)) {
         await run('sudo', ['-n', 'apt-get', 'update'], { env });
@@ -331,6 +328,17 @@ export async function ensureOsPackages(log: InstallerLog): Promise<string[]> {
     if (res.code !== 0) {
         log.warn(`apt-get failed: ${(res.stderr || res.stdout).trim().split('\n').slice(-3).join(' ')}`);
     }
+}
+
+/** Installs libpulse if it is missing. Returns the list of packages that are still missing. */
+export async function ensureOsPackages(log: InstallerLog): Promise<string[]> {
+    if (process.platform !== 'linux') {
+        throw new Error('This adapter currently supports Linux only');
+    }
+    if (hasPulseLibrary()) {
+        return [];
+    }
+    await aptInstall(PULSE_PACKAGE, log);
     return hasPulseLibrary() ? [] : [PULSE_PACKAGE];
 }
 

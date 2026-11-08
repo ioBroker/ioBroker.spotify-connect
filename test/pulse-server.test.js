@@ -703,9 +703,13 @@ describe('stream server with ffmpeg-static', function () {
     this.timeout(30_000);
     let ffmpeg;
 
-    before(async () => {
+    before(async function () {
         ffmpeg = await findFfmpeg(silent);
-        assert.ok(ffmpeg, 'ffmpeg-static must be installed');
+        if (!ffmpeg) {
+            // npm leaves out the optional package if GitHub could not deliver the binary, which does happen
+            console.warn('ffmpeg-static could not be downloaded and the system has no ffmpeg: skipping these tests');
+            this.skip();
+        }
     });
 
     /** Sends one second of a sine, then decodes what the HTTP client received and returns its peak. */

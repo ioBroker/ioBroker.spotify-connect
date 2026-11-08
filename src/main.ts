@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import {
+    aptInstall,
     checkSystem,
     downloadSoloist,
     ensureGlibcRuntime,
@@ -104,11 +105,17 @@ class SpotifyConnect extends utils.Adapter {
             return;
         }
 
-        const ffmpeg = await findFfmpeg(this.log);
+        let ffmpeg = await findFfmpeg(this.log);
+        if (!ffmpeg) {
+            // npm leaves out ffmpeg-static if GitHub could not deliver its binary during the installation
+            await aptInstall('ffmpeg', this.log).catch(e => this.log.warn((e as Error).message));
+            ffmpeg = await findFfmpeg(this.log);
+        }
         if (!ffmpeg) {
             this.log.error(
-                'ffmpeg is not available: the download of ffmpeg-static failed and the system has none. Please run: sudo apt-get install ffmpeg',
+                'ffmpeg is not available: the download of ffmpeg-static failed and it could not be installed with apt-get. Please run: sudo apt-get install ffmpeg. Retrying in 1 hour.',
             );
+            this.restartTimer = this.setTimeout(() => this.restartAdapter(), 3600_000) as any;
             return;
         }
         this.log.debug(`Using ffmpeg: ${ffmpeg}`);
