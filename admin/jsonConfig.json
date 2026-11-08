@@ -1,44 +1,28 @@
 {
   "type": "tabs",
-  "i18n": false,
+  "i18n": true,
   "items": {
     "_spotify": {
       "type": "panel",
-      "label": {
-        "en": "Spotify",
-        "de": "Spotify",
-        "ru": "Spotify"
-      },
+      "label": "Spotify",
       "items": {
         "_howtoHeader": {
           "type": "header",
           "size": 4,
-          "text": {
-            "en": "How to get the Soloist API key",
-            "de": "So bekommen Sie den Soloist-API-Key",
-            "ru": "Как получить API-ключ Soloist"
-          },
+          "text": "How to get the Soloist API key",
           "sm": 12
         },
         "_howto": {
           "type": "staticText",
           "sm": 12,
-          "text": {
-            "en": "This adapter uses Spotify Soloist, the official Spotify Connect receiver from Spotify. Soloist needs a personal API key.<br><br><b>1.</b> You need a Spotify <b>Premium</b> account to create the key. Later, Free accounts can also play on the device.<br><b>2.</b> Open the Spotify for Developers dashboard (first button below) and log in with your normal Spotify account. On the first visit accept the developer terms.<br><b>3.</b> Open the page <b>Spotify Soloist API Key</b> (second button below).<br><b>4.</b> Accept the Spotify terms if asked and generate the key.<br><b>5.</b> Copy the key. It starts with <code>spak_</code>. Paste it into the field below. Do not share it: every user needs an own key.<br><b>6.</b> Save. The adapter downloads Soloist and all required system packages by itself and keeps Soloist up to date (Spotify builds expire after 90 days).<br><b>7.</b> Open the Spotify app on your phone or PC in the same network, tap the device icon and select the device name entered below. The first time, this logs Soloist into your account.",
-            "de": "Dieser Adapter nutzt Spotify Soloist, den offiziellen Spotify-Connect-Empfänger von Spotify. Soloist braucht einen persönlichen API-Key.<br><br><b>1.</b> Zum Erzeugen des Keys brauchen Sie ein Spotify-<b>Premium</b>-Konto. Abspielen können später auch Free-Konten.<br><b>2.</b> Öffnen Sie das Spotify-for-Developers-Dashboard (erster Button unten) und melden Sie sich mit Ihrem normalen Spotify-Konto an. Beim ersten Besuch die Entwickler-Bedingungen akzeptieren.<br><b>3.</b> Öffnen Sie die Seite <b>Spotify Soloist API Key</b> (zweiter Button unten).<br><b>4.</b> Bestätigen Sie die Spotify-Bedingungen, falls danach gefragt wird, und erzeugen Sie den Key.<br><b>5.</b> Kopieren Sie den Key. Er beginnt mit <code>spak_</code>. Fügen Sie ihn unten ein. Bitte nicht weitergeben: Jeder Nutzer braucht einen eigenen Key.<br><b>6.</b> Speichern. Der Adapter lädt Soloist und alle nötigen Systempakete selbst und hält Soloist aktuell (Spotify-Builds laufen nach 90 Tagen ab).<br><b>7.</b> Öffnen Sie die Spotify-App auf Handy oder PC im selben Netz, tippen Sie auf das Geräte-Symbol und wählen Sie den unten eingetragenen Gerätenamen. Beim ersten Mal meldet sich Soloist dabei mit Ihrem Konto an.",
-            "ru": "Адаптер использует Spotify Soloist, официальный приёмник Spotify Connect от Spotify. Для Soloist нужен личный API-ключ.<br><br><b>1.</b> Для создания ключа нужен аккаунт Spotify <b>Premium</b>. Воспроизводить потом могут и бесплатные аккаунты.<br><b>2.</b> Откройте Spotify for Developers Dashboard (первая кнопка ниже) и войдите со своим обычным аккаунтом Spotify. При первом входе примите условия для разработчиков.<br><b>3.</b> Откройте страницу <b>Spotify Soloist API Key</b> (вторая кнопка ниже).<br><b>4.</b> Если потребуется, примите условия Spotify и создайте ключ.<br><b>5.</b> Скопируйте ключ. Он начинается с <code>spak_</code>. Вставьте его в поле ниже. Не передавайте его другим: каждому пользователю нужен свой ключ.<br><b>6.</b> Сохраните. Адаптер сам загрузит Soloist и все нужные системные пакеты и будет обновлять Soloist (сборки Spotify действуют 90 дней).<br><b>7.</b> Откройте приложение Spotify на телефоне или ПК в той же сети, нажмите на значок устройств и выберите указанное ниже имя устройства. В первый раз Soloist при этом войдёт в ваш аккаунт."
-          }
+          "text": "This adapter uses Spotify Soloist, the official Spotify Connect receiver from Spotify. Soloist needs a personal API key.<br><br><b>1.</b> You need a Spotify <b>Premium</b> account to create the key. Later, Free accounts can also play on the device.<br><b>2.</b> Open the Spotify for Developers dashboard (first button below) and log in with your normal Spotify account. On the first visit accept the developer terms.<br><b>3.</b> Open the page <b>Spotify Soloist API Key</b> (second button below).<br><b>4.</b> Accept the Spotify terms if asked and generate the key.<br><b>5.</b> Copy the key. It starts with <code>spak_</code>. Paste it into the field below. Do not share it: every user needs an own key.<br><b>6.</b> Save. The adapter downloads Soloist and all required system packages by itself and keeps Soloist up to date (Spotify builds expire after 90 days).<br><b>7.</b> Open the Spotify app on your phone or PC in the same network, tap the device icon and select the device name entered below. The first time, this logs Soloist into your account."
         },
         "_linkDashboard": {
           "type": "staticLink",
           "button": true,
           "variant": "outlined",
           "href": "https://developer.spotify.com/dashboard",
-          "label": {
-            "en": "1. Open Spotify for Developers",
-            "de": "1. Spotify for Developers öffnen",
-            "ru": "1. Открыть Spotify for Developers"
-          },
+          "label": "1. Open Spotify for Developers",
           "sm": 12,
           "md": 6,
           "lg": 4,
@@ -49,11 +33,7 @@
           "button": true,
           "variant": "contained",
           "href": "https://developer.spotify.com/dashboard/soloist",
-          "label": {
-            "en": "2. Create Soloist API key",
-            "de": "2. Soloist-API-Key erzeugen",
-            "ru": "2. Создать API-ключ Soloist"
-          },
+          "label": "2. Create Soloist API key",
           "sm": 12,
           "md": 6,
           "lg": 4
@@ -62,18 +42,10 @@
           "type": "password",
           "repeat": false,
           "visible": true,
-          "label": {
-            "en": "Soloist API key",
-            "de": "Soloist-API-Key",
-            "ru": "API-ключ Soloist"
-          },
-          "help": {
-            "en": "Starts with spak_",
-            "de": "Beginnt mit spak_",
-            "ru": "Начинается с spak_"
-          },
+          "label": "Soloist API key",
+          "help": "Starts with spak_",
           "validator": "!data.apiKey || data.apiKey.startsWith('spak_')",
-          "validatorErrorText": "Key must start with spak_ / Key muss mit spak_ beginnen",
+          "validatorErrorText": "Key must start with spak_",
           "validatorNoSaveOnError": true,
           "sm": 12,
           "md": 6,
@@ -82,16 +54,8 @@
         },
         "deviceName": {
           "type": "text",
-          "label": {
-            "en": "Device name in the Spotify app",
-            "de": "Gerätename in der Spotify-App",
-            "ru": "Имя устройства в приложении Spotify"
-          },
-          "help": {
-            "en": "e.g. Living room",
-            "de": "z. B. Wohnzimmer",
-            "ru": "например, Гостиная"
-          },
+          "label": "Device name in the Spotify app",
+          "help": "e.g. Living room",
           "sm": 12,
           "md": 6,
           "lg": 4
@@ -99,11 +63,7 @@
         "_linkDocs": {
           "type": "staticLink",
           "href": "https://developer.spotify.com/documentation/soloist",
-          "label": {
-            "en": "Spotify Soloist documentation",
-            "de": "Dokumentation von Spotify Soloist",
-            "ru": "Документация Spotify Soloist"
-          },
+          "label": "Spotify Soloist documentation",
           "sm": 12,
           "newLine": true
         }
@@ -111,20 +71,12 @@
     },
     "_players": {
       "type": "panel",
-      "label": {
-        "en": "Players",
-        "de": "Player",
-        "ru": "Плееры"
-      },
+      "label": "Players",
       "items": {
         "_playersInfo": {
           "type": "staticText",
           "sm": 12,
-          "text": {
-            "en": "When you play on this device in the Spotify app, the adapter writes the stream URL into these states. Any state with role <code>media.url</code> works, e.g. for a ThirdReality speaker in ioBroker.assistant: <code>assistant.0.satellites.&lt;Name&gt;.controls.linux_voice_assistant_media_player.url</code>. After a pause the players are stopped again.",
-            "de": "Sobald Sie in der Spotify-App auf diesem Gerät abspielen, schreibt der Adapter die Stream-URL in diese States. Es geht jeder State mit der Rolle <code>media.url</code>, z. B. für einen ThirdReality-Speaker in ioBroker.assistant: <code>assistant.0.satellites.&lt;Name&gt;.controls.linux_voice_assistant_media_player.url</code>. Nach einer Pause werden die Player wieder gestoppt.",
-            "ru": "Когда вы включаете воспроизведение на этом устройстве в приложении Spotify, адаптер записывает URL потока в эти состояния. Подходит любое состояние с ролью <code>media.url</code>, например для колонки ThirdReality в ioBroker.assistant: <code>assistant.0.satellites.&lt;Name&gt;.controls.linux_voice_assistant_media_player.url</code>. После паузы плееры снова останавливаются."
-          }
+          "text": "When you play on this device in the Spotify app, the adapter writes the stream URL into these states. Any state with role <code>media.url</code> works, e.g. for a ThirdReality speaker in ioBroker.assistant: <code>assistant.0.satellites.&lt;Name&gt;.controls.linux_voice_assistant_media_player.url</code>. After a pause the players are stopped again."
         },
         "targets": {
           "type": "table",
@@ -134,22 +86,14 @@
             {
               "type": "checkbox",
               "attr": "enabled",
-              "title": {
-                "en": "Active",
-                "de": "Aktiv",
-                "ru": "Вкл."
-              },
+              "title": "Active",
               "width": 80,
               "default": true
             },
             {
               "type": "objectId",
               "attr": "id",
-              "title": {
-                "en": "media.url state",
-                "de": "media.url-State",
-                "ru": "Состояние media.url"
-              },
+              "title": "media.url state",
               "types": "state",
               "customFilter": {
                 "common": {
@@ -162,11 +106,7 @@
         "stopAfterSec": {
           "type": "number",
           "min": 0,
-          "label": {
-            "en": "Stop players after pause (seconds)",
-            "de": "Player nach Pause stoppen (Sekunden)",
-            "ru": "Остановить плееры после паузы (секунды)"
-          },
+          "label": "Stop players after pause (seconds)",
           "sm": 12,
           "md": 6,
           "lg": 4,
@@ -176,48 +116,28 @@
     },
     "_advanced": {
       "type": "panel",
-      "label": {
-        "en": "Advanced",
-        "de": "Erweitert",
-        "ru": "Дополнительно"
-      },
+      "label": "Advanced",
       "items": {
         "streamHost": {
           "type": "ip",
           "listenOnAllPorts": false,
           "onlyIp4": true,
-          "label": {
-            "en": "Address the players use to reach ioBroker",
-            "de": "Adresse, unter der die Player ioBroker erreichen",
-            "ru": "Адрес, по которому плееры видят ioBroker"
-          },
-          "help": {
-            "en": "Empty = detect automatically",
-            "de": "Leer = automatisch erkennen",
-            "ru": "Пусто = определить автоматически"
-          },
+          "label": "Address the players use to reach ioBroker",
+          "help": "Empty = detect automatically",
           "sm": 12,
           "md": 6,
           "lg": 4
         },
         "streamPort": {
           "type": "port",
-          "label": {
-            "en": "Stream port",
-            "de": "Stream-Port",
-            "ru": "Порт потока"
-          },
+          "label": "Stream port",
           "sm": 12,
           "md": 3,
           "lg": 2
         },
         "format": {
           "type": "select",
-          "label": {
-            "en": "Stream format",
-            "de": "Stream-Format",
-            "ru": "Формат потока"
-          },
+          "label": "Stream format",
           "options": [
             {
               "label": "MP3 256 kbit/s",
@@ -234,16 +154,8 @@
         },
         "apiPort": {
           "type": "port",
-          "label": {
-            "en": "Local Soloist API port",
-            "de": "Lokaler Soloist-API-Port",
-            "ru": "Локальный порт API Soloist"
-          },
-          "help": {
-            "en": "Only on 127.0.0.1. Must differ per instance",
-            "de": "Nur auf 127.0.0.1. Pro Instanz verschieden",
-            "ru": "Только на 127.0.0.1. Для каждого экземпляра свой"
-          },
+          "label": "Local Soloist API port",
+          "help": "Only on 127.0.0.1. Must differ per instance",
           "sm": 12,
           "md": 3,
           "lg": 2,
