@@ -121,7 +121,7 @@ Spotify's official download server on your device.
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
-### **WORK IN PROGRESS**
+### 0.1.5 (2026-11-08)
 - (@GermanBluefox) PipeWire and WirePlumber are not needed anymore: the adapter takes the audio from Soloist with an own small PulseAudio server. The only required system package is `libpulse0`
 - (@GermanBluefox) ffmpeg comes with the adapter (`ffmpeg-static`), a system ffmpeg is only the fallback
 - (@GermanBluefox) The stream starts faster: the first audio arrives after about 0.2 seconds
