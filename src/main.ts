@@ -7,6 +7,7 @@ import {
     downloadSoloist,
     ensureGlibcRuntime,
     ensureOsPackages,
+    findFfmpeg,
     getRemoteInfo,
     getVersion,
     glibcVersion,
@@ -14,7 +15,7 @@ import {
     needsGlibcRuntime,
     type SoloistVersion,
 } from './lib/installer';
-import { PipeWire, SINK_NAME } from './lib/pipewire';
+import { PulseServer, SINK_CHANNELS, SINK_RATE } from './lib/pulse-server';
 import { EXIT_EXPIRED, Soloist, type SoloistEntity } from './lib/soloist';
 import { CHANNELS, STATES } from './lib/states';
 import { StreamServer } from './lib/stream-server';
@@ -29,9 +30,11 @@ const AUDIO_RETRY_MIN_MS = 30_000;
 const AUDIO_RETRY_MAX_MS = 30 * 60_000;
 /** Audio running this long counts as stable and resets the failure count. */
 const AUDIO_STABLE_MS = 10 * 60_000;
+/** Soloist reports playback this long without sending audio: its audio output does not work. */
+const NO_AUDIO_WARNING_MS = 15_000;
 
 class SpotifyConnect extends utils.Adapter {
-    private pipewire?: PipeWire;
+    private pulse?: PulseServer;
     private soloist?: Soloist;
     private stream?: StreamServer;
     private binary = '';
@@ -44,6 +47,7 @@ class SpotifyConnect extends utils.Adapter {
     private audioOkTimer?: NodeJS.Timeout;
     private audioRestartTimer?: NodeJS.Timeout;
     private stopTimer?: NodeJS.Timeout;
+    private noAudioTimer?: NodeJS.Timeout;
     private restartDelay = 5000;
     private pendingRestart = false;
     private unloading = false;
@@ -86,7 +90,7 @@ class SpotifyConnect extends utils.Adapter {
             return;
         }
 
-        // 1. Debian packages
+        // 1. libpulse for Soloist and ffmpeg for the stream
         try {
             const missing = await ensureOsPackages(this.log);
             if (missing.length) {
@@ -99,6 +103,15 @@ class SpotifyConnect extends utils.Adapter {
             this.log.error((e as Error).message);
             return;
         }
+
+        const ffmpeg = await findFfmpeg(this.log);
+        if (!ffmpeg) {
+            this.log.error(
+                'ffmpeg is not available: the download of ffmpeg-static failed and the system has none. Please run: sudo apt-get install ffmpeg',
+            );
+            return;
+        }
+        this.log.debug(`Using ffmpeg: ${ffmpeg}`);
 
         // 2. Soloist binary (with a private glibc from Debian 13 if the system one is too old)
         try {
@@ -131,15 +144,19 @@ class SpotifyConnect extends utils.Adapter {
 
         // 3. Audio, stream, Soloist
         try {
-            this.pipewire = new PipeWire(dataDir, this.log, (_name, reason) => void this.onAudioFailure(reason));
-            await this.pipewire.start();
+            // folder of the PipeWire configuration of older versions
+            await fs.rm(join(dataDir, 'config'), { recursive: true, force: true });
+            this.pulse = new PulseServer(join(dataDir, 'run'), this.log, reason => void this.onAudioFailure(reason));
+            await this.pulse.start();
 
             this.stream = new StreamServer(
                 {
                     port: c.streamPort || 8097,
                     format: c.format || 'mp3',
-                    source: `${SINK_NAME}.monitor`,
-                    env: this.pipewire.env,
+                    ffmpeg,
+                    source: this.pulse,
+                    sampleRate: SINK_RATE,
+                    channels: SINK_CHANNELS,
                 },
                 this.log,
                 n => void this.setState('stream.clients', n, true),
@@ -258,7 +275,7 @@ class SpotifyConnect extends utils.Adapter {
     }
 
     private startSoloist(): void {
-        if (this.unloading || !this.pipewire) {
+        if (this.unloading || !this.pulse) {
             return;
         }
         const dataDir = utils.getAbsoluteInstanceDataDir(this);
@@ -270,10 +287,10 @@ class SpotifyConnect extends utils.Adapter {
                 apiKey: this.config.apiKey,
                 dataDir: join(dataDir, 'data'),
                 cacheDir: join(dataDir, 'cache'),
-                sink: SINK_NAME,
                 wsPort: this.config.apiPort || 9090,
                 initialVolume: 100,
-                env: this.pipewire.env,
+                verbose: this.log.level === 'debug' || this.log.level === 'silly',
+                env: this.pulse.env,
             },
             this.log,
         );
@@ -310,12 +327,11 @@ class SpotifyConnect extends utils.Adapter {
     }
 
     /**
-     * PipeWire did not start or stopped unexpectedly: restart the adapter with a growing delay, so that a system
-     * where PipeWire cannot run (e.g. some LXC containers) does not end up in a restart loop.
+     * The audio part did not start or failed, e.g. because the stream port is used by another program: restart the
+     * adapter with a growing delay, so that this does not end up in a restart loop.
      * The failure count survives the adapter restart.
      */
     private async onAudioFailure(reason: string): Promise<void> {
-        // pipewire-pulse and wireplumber die together with pipewire: count that as one failure
         if (this.unloading || this.audioRestartTimer) {
             return;
         }
@@ -335,11 +351,11 @@ class SpotifyConnect extends utils.Adapter {
             clearTimeout(this.audioOkTimer);
             this.audioOkTimer = undefined;
         }
-        const pipewire = this.pipewire;
-        this.pipewire = undefined; // startSoloist() does nothing without audio
+        const pulse = this.pulse;
+        this.pulse = undefined; // startSoloist() does nothing without audio
         await this.soloist?.stop();
         await this.stream?.stop();
-        await pipewire?.stop();
+        await pulse?.stop();
         clearTimeout(this.audioRestartTimer);
         this.audioRestartTimer = this.setTimeout(() => this.restartAdapter(), delay) as any;
     }
@@ -472,6 +488,7 @@ class SpotifyConnect extends utils.Adapter {
                 this.targetsPlaying = true;
                 await this.sendToTargets(this.streamUrl);
             }
+            this.watchForAudio();
         } else if (this.targetsPlaying && !this.stopTimer) {
             const sec = Math.max(0, Number(this.config.stopAfterSec) || 0);
             this.stopTimer = this.setTimeout(async () => {
@@ -481,6 +498,23 @@ class SpotifyConnect extends utils.Adapter {
             }, sec * 1000) as any;
         }
         this.restartSoloistIfIdle();
+    }
+
+    /** Without this, a Soloist without audio output looks as if everything worked and only the players stay silent. */
+    private watchForAudio(): void {
+        if (this.noAudioTimer) {
+            return;
+        }
+        const before = this.pulse?.bytesReceived ?? 0;
+        this.noAudioTimer = this.setTimeout(() => {
+            this.noAudioTimer = undefined;
+            const playing = this.active && this.status === 'playing';
+            if (playing && this.pulse?.bytesReceived === before) {
+                this.log.warn(
+                    'Soloist reports playback but sends no audio. Please set the log level to debug and check its output.',
+                );
+            }
+        }, NO_AUDIO_WARNING_MS) as any;
     }
 
     private async sendToTargets(value: string): Promise<void> {
@@ -626,6 +660,7 @@ class SpotifyConnect extends utils.Adapter {
             this.updateTimer,
             this.restartTimer,
             this.stopTimer,
+            this.noAudioTimer,
             this.audioOkTimer,
             this.audioRestartTimer,
         ]) {
@@ -639,7 +674,7 @@ class SpotifyConnect extends utils.Adapter {
         }
         await this.soloist?.stop();
         await this.stream?.stop();
-        await this.pipewire?.stop();
+        await this.pulse?.stop();
     }
 
     private onUnload(callback: () => void): void {

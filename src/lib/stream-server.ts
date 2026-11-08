@@ -1,20 +1,28 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import type { EventEmitter } from 'node:events';
 import http from 'node:http';
 
 interface StreamLog {
     info(msg: string): void;
     warn(msg: string): void;
     debug(msg: string): void;
+    error(msg: string): void;
 }
 
 export interface StreamOptions {
     port: number;
     format: 'mp3' | 'flac';
-    source: string; // pulse source, e.g. "<sink>.monitor"
-    env: NodeJS.ProcessEnv;
+    /** Path of the ffmpeg binary */
+    ffmpeg: string;
+    /** Emits "pcm" with Buffers of s16le samples */
+    source: EventEmitter;
+    sampleRate: number;
+    channels: number;
 }
 
 const CONTENT_TYPE = { mp3: 'audio/mpeg', flac: 'audio/flac' };
+/** An encoder or client that is further behind than this loses audio instead of growing the buffer without limit. */
+const MAX_BACKLOG = 1024 * 1024;
 
 /**
  * HTTP server that delivers what Soloist plays as a live stream.
@@ -25,9 +33,19 @@ const CONTENT_TYPE = { mp3: 'audio/mpeg', flac: 'audio/flac' };
  */
 export class StreamServer {
     private server?: http.Server;
+    /** The shared MP3 encoder */
     private encoder?: ChildProcess;
+    /** All running encoders, they all get the PCM */
+    private readonly encoders = new Set<ChildProcess>();
     private clients = new Set<http.ServerResponse>();
     private idleTimer?: NodeJS.Timeout;
+    private readonly onPcm = (pcm: Buffer): void => {
+        for (const ff of this.encoders) {
+            if (ff.stdin?.writable && ff.stdin.writableLength < MAX_BACKLOG) {
+                ff.stdin.write(pcm);
+            }
+        }
+    };
 
     public constructor(
         private readonly opts: StreamOptions,
@@ -46,6 +64,7 @@ export class StreamServer {
             server.listen(this.opts.port, '0.0.0.0', () => {
                 server.off('error', reject);
                 this.server = server;
+                this.opts.source.on('pcm', this.onPcm);
                 this.log.info(`Stream available on port ${this.opts.port}${this.path}`);
                 resolve();
             });
@@ -53,11 +72,15 @@ export class StreamServer {
     }
 
     public async stop(): Promise<void> {
+        this.opts.source.off('pcm', this.onPcm);
         for (const c of this.clients) {
             c.destroy();
         }
         this.clients.clear();
         this.stopEncoder();
+        for (const ff of this.encoders) {
+            ff.kill('SIGKILL');
+        }
         await new Promise<void>(resolve => (this.server ? this.server.close(() => resolve()) : resolve()));
         this.server = undefined;
     }
@@ -80,9 +103,11 @@ export class StreamServer {
             res.end();
             return;
         }
+        // do not make the client wait for the first encoded audio
+        res.flushHeaders();
 
         if (this.opts.format === 'flac') {
-            const ff = this.spawnEncoder();
+            const ff = this.spawnEncoder(() => res.end());
             ff.stdout?.pipe(res);
             this.clients.add(res);
             this.onClients(this.clients.size);
@@ -99,19 +124,21 @@ export class StreamServer {
             this.idleTimer = undefined;
         }
         if (!this.encoder) {
-            this.encoder = this.spawnEncoder();
-            this.encoder.stdout?.on('data', (chunk: Buffer) => {
-                for (const c of this.clients) {
-                    // drop data for clients that cannot keep up instead of buffering without limit
-                    if (c.writableLength < 1024 * 1024) {
-                        c.write(chunk);
-                    }
+            const encoder = this.spawnEncoder(() => {
+                if (this.encoder === encoder) {
+                    this.encoder = undefined;
                 }
-            });
-            this.encoder.on('exit', () => {
-                this.encoder = undefined;
                 for (const c of this.clients) {
                     c.end();
+                }
+            });
+            this.encoder = encoder;
+            encoder.stdout?.on('data', (chunk: Buffer) => {
+                for (const c of this.clients) {
+                    // drop data for clients that cannot keep up instead of buffering without limit
+                    if (c.writableLength < MAX_BACKLOG) {
+                        c.write(chunk);
+                    }
                 }
             });
         }
@@ -126,7 +153,8 @@ export class StreamServer {
         });
     }
 
-    private spawnEncoder(): ChildProcess {
+    /** @param onEnd called once when the encoder has exited or could not be started */
+    private spawnEncoder(onEnd: () => void): ChildProcess {
         const codec =
             this.opts.format === 'flac'
                 ? ['-c:a', 'flac', '-f', 'flac']
@@ -135,21 +163,39 @@ export class StreamServer {
             '-hide_banner',
             '-loglevel',
             'error',
+            // the format is known: without this, ffmpeg analyzes about 2 seconds of input before it delivers anything
+            '-probesize',
+            '32',
+            '-analyzeduration',
+            '0',
             '-f',
-            'pulse',
-            '-fragment_size',
-            '4096',
-            '-i',
-            this.opts.source,
-            '-ac',
-            '2',
+            's16le',
             '-ar',
-            '44100',
+            String(this.opts.sampleRate),
+            '-ac',
+            String(this.opts.channels),
+            '-i',
+            'pipe:0',
             ...codec,
+            '-flush_packets',
+            '1',
             'pipe:1',
         ];
-        const ff = spawn('ffmpeg', args, { env: this.opts.env, stdio: ['ignore', 'pipe', 'pipe'] });
+        const ff = spawn(this.opts.ffmpeg, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+        this.encoders.add(ff);
+        ff.stdin?.on('error', err => this.log.debug(`ffmpeg input: ${err.message}`));
         ff.stderr?.on('data', d => this.log.warn(`ffmpeg: ${d.toString().trim()}`));
+        const ended = (): void => {
+            // a process that could not be started emits "error", but not "exit"
+            if (this.encoders.delete(ff)) {
+                onEnd();
+            }
+        };
+        ff.on('error', err => {
+            this.log.error(`Cannot start ffmpeg: ${err.message}`);
+            ended();
+        });
+        ff.on('exit', ended);
         return ff;
     }
 

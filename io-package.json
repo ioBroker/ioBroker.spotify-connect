@@ -106,11 +106,7 @@
     ],
     "osDependencies": {
       "linux": [
-        "pipewire",
-        "pipewire-pulse",
-        "wireplumber",
-        "pulseaudio-utils",
-        "ffmpeg"
+        "libpulse0"
       ]
     },
     "os": [

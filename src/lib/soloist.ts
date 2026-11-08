@@ -15,9 +15,10 @@ export interface SoloistOptions {
     apiKey: string;
     dataDir: string;
     cacheDir: string;
-    sink: string;
     wsPort: number;
     initialVolume: number;
+    /** Soloist logs everything, for debug log level */
+    verbose: boolean;
     env: NodeJS.ProcessEnv;
 }
 
@@ -25,6 +26,7 @@ interface SoloistLog {
     info(msg: string): void;
     warn(msg: string): void;
     debug(msg: string): void;
+    error(msg: string): void;
 }
 
 export interface SoloistEntity {
@@ -75,13 +77,14 @@ export class Soloist extends EventEmitter {
             o.cacheDir,
             '-z',
             '200',
-            '-d',
-            o.sink,
             '-i',
             String(o.initialVolume),
             '-w',
             `127.0.0.1:${o.wsPort}`,
         ];
+        if (o.verbose) {
+            args.push('--verbose');
+        }
         this.log.info(`Starting Spotify Soloist as "${o.deviceName}"`);
         const c = soloistCommand(o.binary, o.runtime);
         const p = spawn(c.cmd, [...c.args, ...args], { env: o.env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -100,6 +103,12 @@ export class Soloist extends EventEmitter {
                 }
                 if (/\b(error|failed)\b/i.test(l) && !/websocket/i.test(l)) {
                     this.log.warn(`soloist: ${l.replace(/^[\d-]+ [\d:.]+:\s*/, '')}`);
+                }
+                // libpulse could not be loaded or connected: everything seems to work, but there is no sound
+                if (/using dummy/i.test(l)) {
+                    this.log.error(
+                        `Soloist has no audio output (${l.replace(/^[\d-]+ [\d:.]+:\s*/, '')}). Is libpulse0 installed?`,
+                    );
                 }
                 if (/websocket server listening/i.test(l)) {
                     this.connectApi();

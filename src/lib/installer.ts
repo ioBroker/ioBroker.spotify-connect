@@ -5,14 +5,12 @@ import { pipeline } from 'node:stream/promises';
 import { cpus, release } from 'node:os';
 import { hasBinary, run, type RunResult } from './run';
 
-/** Debian packages and the binary that proves each one is installed. */
-const OS_PACKAGES: { pkg: string; bin: string }[] = [
-    { pkg: 'pipewire', bin: 'pipewire' },
-    { pkg: 'pipewire-pulse', bin: 'pipewire-pulse' },
-    { pkg: 'wireplumber', bin: 'wireplumber' },
-    { pkg: 'pulseaudio-utils', bin: 'pactl' },
-    { pkg: 'ffmpeg', bin: 'ffmpeg' },
-];
+/**
+ * Debian package and the library that proves it is installed. Soloist loads libpulse with dlopen() at runtime and
+ * silently plays into nothing if it is missing, so it does not show up as a dependency of the binary.
+ */
+const PULSE_PACKAGE = 'libpulse0';
+const PULSE_LIBRARY = 'libpulse.so.0';
 
 const DOWNLOAD_BASE = 'https://soloist-builds.spotifycdn.com';
 /** Builds are valid for 90 days after their build date (documented by Spotify). */
@@ -43,6 +41,8 @@ interface RuntimeArch {
     debian: string;
     /** Name of the dynamic loader */
     loader: string;
+    /** Multiarch folder of the libraries */
+    triplet: string;
 }
 
 /** Folder of the private glibc inside the Soloist folder. */
@@ -79,11 +79,11 @@ export function soloistArch(): string {
 export function runtimeArch(): RuntimeArch {
     switch (process.arch) {
         case 'arm64':
-            return { debian: 'arm64', loader: 'ld-linux-aarch64.so.1' };
+            return { debian: 'arm64', loader: 'ld-linux-aarch64.so.1', triplet: 'aarch64-linux-gnu' };
         case 'arm':
-            return { debian: 'armhf', loader: 'ld-linux-armhf.so.3' };
+            return { debian: 'armhf', loader: 'ld-linux-armhf.so.3', triplet: 'arm-linux-gnueabihf' };
         case 'x64':
-            return { debian: 'amd64', loader: 'ld-linux-x86-64.so.2' };
+            return { debian: 'amd64', loader: 'ld-linux-x86-64.so.2', triplet: 'x86_64-linux-gnu' };
         default:
             throw new Error(`Spotify Soloist is not available for architecture "${process.arch}"`);
     }
@@ -259,40 +259,79 @@ export function soloistUrl(): string {
     return `${DOWNLOAD_BASE}/soloist_release_${soloistArch()}.tar.gz`;
 }
 
+/** True if libpulse is in one of the folders the dynamic loader searches. */
+export function hasPulseLibrary(): boolean {
+    const { triplet } = runtimeArch();
+    return [
+        `/lib/${triplet}`,
+        `/usr/lib/${triplet}`,
+        '/lib',
+        '/usr/lib',
+        '/lib64',
+        '/usr/lib64',
+        '/usr/local/lib',
+    ].some(dir => existsSync(join(dir, PULSE_LIBRARY)));
+}
+
 /**
- * Installs missing Debian packages with "sudo -n apt-get". Standard ioBroker installations allow this
+ * Finds a working ffmpeg: the binary of the ffmpeg-static package, or the one of the system if the download
+ * of that package failed or its binary cannot run here. Returns null if there is none.
+ */
+export async function findFfmpeg(log: InstallerLog): Promise<string | null> {
+    const works = async (bin: string): Promise<boolean> =>
+        (await run(bin, ['-version'], { timeout: 15_000 })).code === 0;
+
+    let bundled: string | null = null;
+    try {
+        // An optional dependency: npm leaves it out if the download of the binary fails during the installation.
+        // As a normal dependency, that would make the installation of the whole adapter fail.
+        bundled = require('ffmpeg-static') as string | null;
+    } catch {
+        log.debug('Package ffmpeg-static is not installed');
+    }
+    if (bundled) {
+        if (!existsSync(bundled)) {
+            // ffmpeg-static downloads the binary in its install script, which does not run with --ignore-scripts
+            log.info('Downloading ffmpeg');
+            const res = await run(process.execPath, [join(dirname(bundled), 'install.js')], {
+                cwd: dirname(bundled),
+            });
+            if (res.code !== 0) {
+                log.warn(
+                    `Cannot download ffmpeg: ${(res.stderr || res.stdout).trim().split('\n').slice(-3).join(' ')}`,
+                );
+            }
+        }
+        if (existsSync(bundled) && (await works(bundled))) {
+            return bundled;
+        }
+    }
+    return (await hasBinary('ffmpeg')) && (await works('ffmpeg')) ? 'ffmpeg' : null;
+}
+
+/**
+ * Installs the missing Debian package with "sudo -n apt-get". Standard ioBroker installations allow this
  * without password. Returns the list of packages that are still missing.
  */
 export async function ensureOsPackages(log: InstallerLog): Promise<string[]> {
     if (process.platform !== 'linux') {
         throw new Error('This adapter currently supports Linux only');
     }
-    const missing: string[] = [];
-    for (const p of OS_PACKAGES) {
-        if (!(await hasBinary(p.bin))) {
-            missing.push(p.pkg);
-        }
-    }
-    if (!missing.length) {
+    if (hasPulseLibrary()) {
         return [];
     }
-    log.info(`Installing missing packages: ${missing.join(', ')}`);
+    log.info(`Installing missing package: ${PULSE_PACKAGE}`);
     const env = { ...process.env, DEBIAN_FRONTEND: 'noninteractive' };
-    let res = await run('sudo', ['-n', 'apt-get', 'install', '-y', '--no-install-recommends', ...missing], { env });
+    const install = ['-n', 'apt-get', 'install', '-y', '--no-install-recommends', PULSE_PACKAGE];
+    let res = await run('sudo', install, { env });
     if (res.code !== 0 && /Unable to locate|has no installation candidate/i.test(res.stderr + res.stdout)) {
         await run('sudo', ['-n', 'apt-get', 'update'], { env });
-        res = await run('sudo', ['-n', 'apt-get', 'install', '-y', '--no-install-recommends', ...missing], { env });
+        res = await run('sudo', install, { env });
     }
     if (res.code !== 0) {
         log.warn(`apt-get failed: ${(res.stderr || res.stdout).trim().split('\n').slice(-3).join(' ')}`);
     }
-    const still: string[] = [];
-    for (const p of OS_PACKAGES) {
-        if (!(await hasBinary(p.bin))) {
-            still.push(p.pkg);
-        }
-    }
-    return still;
+    return hasPulseLibrary() ? [] : [PULSE_PACKAGE];
 }
 
 /** Parses "soloist 1.3.10.51 build 1793988108 (20261106) (g19412df6ea) (linux/aarch64)". */

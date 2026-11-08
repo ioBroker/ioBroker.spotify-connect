@@ -13,7 +13,7 @@ It is based on [Spotify Soloist](https://developer.spotify.com/documentation/sol
 Spotify Connect client from Spotify. It does not use reverse engineered Spotify clients.
 
 ```
-Spotify app  ->  Soloist  ->  PipeWire null sink  ->  HTTP stream  ->  media.url state  ->  speaker
+Spotify app  ->  Soloist  ->  PulseAudio server in the adapter  ->  ffmpeg  ->  HTTP stream  ->  media.url state  ->  speaker
 ```
 
 ## Requirements
@@ -25,18 +25,20 @@ Spotify app  ->  Soloist  ->  PipeWire null sink  ->  HTTP stream  ->  media.url
   with this glibc. The system libraries are not changed. An OS upgrade is still the cleaner solution.
 - Docker: the official ioBroker image v12 or newer (Debian 13 Trixie) runs Soloist directly, older images use
   the private glibc described above. Packages installed by the adapter are lost when the container is recreated,
-  so add them to the container environment:
-  `PACKAGES="pipewire pipewire-pulse wireplumber pulseaudio-utils ffmpeg"`.
+  so add them to the container environment: `PACKAGES="libpulse0"`.
 - A Spotify **Premium** account to create the Soloist API key. Free accounts can play on the device afterwards.
 - Internet access at least every few weeks (Soloist builds expire after 90 days, see below).
 
 Everything else is set up by the adapter:
 
-- missing system packages (`pipewire`, `pipewire-pulse`, `wireplumber`, `pulseaudio-utils`, `ffmpeg`) are
-  installed with `sudo apt-get`, which standard ioBroker installations allow,
+- the only system package, `libpulse0`, is installed with `sudo apt-get`, which standard ioBroker installations
+  allow. Soloist loads this client library at runtime,
+- ffmpeg comes with the npm package `ffmpeg-static`. Its binary is downloaded from GitHub during the installation.
+  If that fails, an `ffmpeg` installed on the system is used,
 - Spotify Soloist is downloaded from Spotify's servers on first start,
-- a private PipeWire instance is started for the adapter. It needs no login session and does not touch
-  sound cards or Bluetooth devices of the system.
+- the adapter contains a small PulseAudio server for exactly one purpose: it takes the audio from Soloist and
+  passes it to ffmpeg. No audio system is started, it needs no login session and does not touch sound cards or
+  Bluetooth devices of the system.
 
 ## Getting the Soloist API key
 
@@ -119,6 +121,12 @@ Spotify's official download server on your device.
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+### **WORK IN PROGRESS**
+- (@GermanBluefox) PipeWire and WirePlumber are not needed anymore: the adapter takes the audio from Soloist with an own small PulseAudio server. The only required system package is `libpulse0`
+- (@GermanBluefox) ffmpeg comes with the adapter (`ffmpeg-static`), a system ffmpeg is only the fallback
+- (@GermanBluefox) The stream starts faster: the first audio arrives after about 0.2 seconds
+- (@GermanBluefox) Warning in the log if Soloist reports playback but sends no audio. With log level debug, Soloist runs with `--verbose`
+
 ### 0.1.4 (2026-11-08)
 - (@GermanBluefox) No restart loop if PipeWire cannot run: the adapter restarts with a growing delay (30s up to 30 min)
 - (@GermanBluefox) Log the output of PipeWire/WirePlumber when they exit, so the reason is visible without debug level
