@@ -97,7 +97,7 @@
               "types": "state",
               "customFilter": {
                 "common": {
-                  "role": "media.url"
+                  "role": ["media.url"]
                 }
               }
             }

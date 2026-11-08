@@ -126,6 +126,7 @@ Spotify's official download server on your device.
 - (@GermanBluefox) ffmpeg comes with the adapter (`ffmpeg-static`), a system ffmpeg is only the fallback
 - (@GermanBluefox) The stream starts faster: the first audio arrives after about 0.2 seconds
 - (@GermanBluefox) Warning in the log if Soloist reports playback but sends no audio. With log level debug, Soloist runs with `--verbose`
+- (@GermanBluefox) The selection dialog for the target state shows only states with the role `media.url`
 
 ### 0.1.4 (2026-11-08)
 - (@GermanBluefox) No restart loop if PipeWire cannot run: the adapter restarts with a growing delay (30s up to 30 min)
