@@ -64,6 +64,30 @@ describe('installer', () => {
     });
 });
 
+describe('soloist log', () => {
+    const { cleanLogLine, isLogProblem } = require('../build/lib/soloist');
+    const color = '\u001b[1;31m';
+
+    it('does not warn about PipeWire, Soloist always tries it first', () => {
+        assert.equal(isLogProblem(`08:44:25.774 E [f:74   ] ${color}Pipewire initialization failed!!`), false);
+        assert.equal(isLogProblem(`08:44:25.774 E [f:52   ] ${color}PipewireRenderer error isPipeWireDaemonReachable => 0`), false);
+    });
+
+    it('does not warn about informational lines', () => {
+        assert.equal(isLogProblem('08:44:26.327 I [f:712  ] tryStartPlayback failed, not final + not enough buffered (10 tries)'), false);
+    });
+
+    it('warns about real errors in both log formats', () => {
+        assert.equal(isLogProblem(`08:44:26.327 E [f:712  ] ${color}PulseAudio stream error`), true);
+        assert.equal(isLogProblem('2026-11-08 08:44:26.327: Login failed'), true);
+    });
+
+    it('removes colors, time, level and position', () => {
+        assert.equal(cleanLogLine(`08:44:26.327 E [f:712  ] ${color}Something failed`), 'Something failed');
+        assert.equal(cleanLogLine('2026-11-08 08:44:26.327: Login failed'), 'Login failed');
+    });
+});
+
 describe('states', () => {
     it('has no own state with role media.url (would be offered as target player)', () => {
         for (const [id, def] of Object.entries(STATES)) {

@@ -175,11 +175,14 @@ function finishCreateReply(t) {
     assert.ok(t.eof, 'libpulse fails the connection on trailing fields');
 }
 
-function samples(count, start = 1) {
+/** Never 0: the tests recognize audio by samples that are not silent. */
+const sampleValue = i => 1 + (i % 29999);
+
+function samples(count) {
     const b = Buffer.alloc(count * 4);
     for (let i = 0; i < count; i++) {
-        b.writeInt16LE((start + i) % 30000, i * 4);
-        b.writeInt16LE(-((start + i) % 30000), i * 4 + 2);
+        b.writeInt16LE(sampleValue(i), i * 4);
+        b.writeInt16LE(-sampleValue(i), i * 4 + 2);
     }
     return b;
 }
@@ -394,8 +397,8 @@ describe('pulse server', function () {
         const frames = nonSilent();
         assert.equal(frames.length, count);
         frames.forEach(([l, r], i) => {
-            assert.equal(l, (i + 1) % 30000);
-            assert.equal(r, -((i + 1) % 30000));
+            assert.equal(l, sampleValue(i));
+            assert.equal(r, -sampleValue(i));
         });
     });
 
@@ -905,8 +908,8 @@ describe('real libpulse', function () {
         const elapsed = Date.now() - start;
         assert.equal(frames.length, count);
         frames.forEach(([l, r], i) => {
-            assert.equal(l, (i + 1) % 30000);
-            assert.equal(r, -((i + 1) % 30000));
+            assert.equal(l, sampleValue(i));
+            assert.equal(r, -sampleValue(i));
         });
         assert.ok(elapsed >= 800, `one second of audio took only ${elapsed} ms`);
     });

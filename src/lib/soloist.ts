@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { stripVTControlCharacters } from 'node:util';
 import WebSocket from 'ws';
 import { soloistCommand } from './installer';
 import { sleep } from './run';
@@ -39,6 +40,25 @@ export interface SoloistEntity {
         creators?: { entity?: SoloistEntity }[];
         playback?: { duration_ms?: number };
     };
+}
+
+/** Removes colors, time, level and source position from a line of the Soloist log. */
+export function cleanLogLine(line: string): string {
+    return stripVTControlCharacters(line)
+        .replace(/^[\d-]+ [\d:.]+:\s*/, '')
+        .replace(/^[\d:.]+ [A-Z] \[[^\]]*\]\s*/, '')
+        .trim();
+}
+
+/**
+ * True if a line of the Soloist log is a problem worth a warning. Soloist tries PipeWire before PulseAudio, so its
+ * complaints about PipeWire are expected on every playback: the adapter offers PulseAudio only.
+ */
+export function isLogProblem(line: string): boolean {
+    if (/^[\d:.]+ [DIV] \[/.test(stripVTControlCharacters(line))) {
+        return false; // only informational, even if it contains "failed"
+    }
+    return /\b(error|failed)\b/i.test(line) && !/websocket|pipewire/i.test(line);
 }
 
 /**
@@ -101,14 +121,12 @@ export class Soloist extends EventEmitter {
                 if (exp) {
                     this.emit('expires', parseInt(exp[1], 10));
                 }
-                if (/\b(error|failed)\b/i.test(l) && !/websocket/i.test(l)) {
-                    this.log.warn(`soloist: ${l.replace(/^[\d-]+ [\d:.]+:\s*/, '')}`);
+                if (isLogProblem(l)) {
+                    this.log.warn(`soloist: ${cleanLogLine(l)}`);
                 }
                 // libpulse could not be loaded or connected: everything seems to work, but there is no sound
                 if (/using dummy/i.test(l)) {
-                    this.log.error(
-                        `Soloist has no audio output (${l.replace(/^[\d-]+ [\d:.]+:\s*/, '')}). Is libpulse0 installed?`,
-                    );
+                    this.log.error(`Soloist has no audio output (${cleanLogLine(l)}). Is libpulse0 installed?`);
                 }
                 if (/websocket server listening/i.test(l)) {
                     this.connectApi();
