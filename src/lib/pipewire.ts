@@ -17,13 +17,19 @@ interface PwLog {
 export class PipeWire {
     private procs: ChildProcess[] = [];
     private stopping = false;
+    /** True while start() runs: a process that dies then makes start() fail instead of calling onCrash */
+    private starting = false;
+    /** Process that exited during start() and why */
+    private died = '';
+    /** Last output lines of each process, logged when it exits */
+    private readonly tail = new Map<string, string[]>();
     public readonly runtimeDir: string;
     private readonly configDir: string;
 
     public constructor(
         baseDir: string,
         private readonly log: PwLog,
-        private readonly onCrash: (name: string) => void,
+        private readonly onCrash: (name: string, reason: string) => void,
     ) {
         this.runtimeDir = join(baseDir, 'run');
         this.configDir = join(baseDir, 'config');
@@ -42,8 +48,23 @@ export class PipeWire {
         return env;
     }
 
+    /** Starts PipeWire, WirePlumber and pipewire-pulse. On failure everything is stopped again. */
     public async start(): Promise<void> {
         this.stopping = false;
+        this.starting = true;
+        this.died = '';
+        try {
+            await this.doStart();
+        } catch (e) {
+            const reason = this.died || (e as Error).message;
+            await this.stop();
+            throw new Error(reason);
+        } finally {
+            this.starting = false;
+        }
+    }
+
+    private async doStart(): Promise<void> {
         await fs.rm(this.runtimeDir, { recursive: true, force: true });
         await fs.mkdir(this.runtimeDir, { recursive: true, mode: 0o700 });
 
@@ -112,12 +133,32 @@ export class PipeWire {
     private spawn(cmd: string, args: string[], extraEnv: NodeJS.ProcessEnv = {}): void {
         const p = spawn(cmd, args, { env: { ...this.env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
         const name = cmd;
-        p.stdout?.on('data', d => this.log.debug(`${name}: ${d.toString().trim()}`));
-        p.stderr?.on('data', d => this.log.debug(`${name}: ${d.toString().trim()}`));
-        p.on('exit', code => {
-            if (!this.stopping) {
-                this.log.warn(`${name} exited with code ${code}`);
-                this.onCrash(name);
+        const tail: string[] = [];
+        this.tail.set(name, tail);
+        const onData = (d: Buffer): void => {
+            for (const line of d.toString().split('\n')) {
+                const l = line.trim();
+                if (l) {
+                    this.log.debug(`${name}: ${l}`);
+                    tail.push(l);
+                    if (tail.length > 5) {
+                        tail.shift();
+                    }
+                }
+            }
+        };
+        p.stdout?.on('data', onData);
+        p.stderr?.on('data', onData);
+        p.on('error', err => tail.push(err.message));
+        p.on('exit', (code, signal) => {
+            if (this.stopping) {
+                return;
+            }
+            const reason = `${name} exited with ${signal ? `signal ${signal}` : `code ${code}`}${tail.length ? `: ${tail.join(' | ')}` : ''}`;
+            if (this.starting) {
+                this.died ||= reason;
+            } else {
+                this.onCrash(name, reason);
             }
         });
         this.procs.push(p);
@@ -128,6 +169,9 @@ export class PipeWire {
         while (Date.now() < end) {
             if (existsSync(path)) {
                 return;
+            }
+            if (this.died) {
+                throw new Error(this.died);
             }
             await sleep(100);
         }

@@ -24,6 +24,11 @@ const DAY = 24 * 3600 * 1000;
 const UPDATE_FROM_DAYS = 30;
 /** Restart for an update even during playback when the build expires within this many days. */
 const FORCE_RESTART_DAYS = 3;
+/** Delay before the adapter restarts after an audio failure, doubled with every failure in a row. */
+const AUDIO_RETRY_MIN_MS = 30_000;
+const AUDIO_RETRY_MAX_MS = 30 * 60_000;
+/** Audio running this long counts as stable and resets the failure count. */
+const AUDIO_STABLE_MS = 10 * 60_000;
 
 class SpotifyConnect extends utils.Adapter {
     private pipewire?: PipeWire;
@@ -36,6 +41,8 @@ class SpotifyConnect extends utils.Adapter {
     private soloistVer: SoloistVersion | null = null;
     private updateTimer?: NodeJS.Timeout;
     private restartTimer?: NodeJS.Timeout;
+    private audioOkTimer?: NodeJS.Timeout;
+    private audioRestartTimer?: NodeJS.Timeout;
     private stopTimer?: NodeJS.Timeout;
     private restartDelay = 5000;
     private pendingRestart = false;
@@ -124,7 +131,7 @@ class SpotifyConnect extends utils.Adapter {
 
         // 3. Audio, stream, Soloist
         try {
-            this.pipewire = new PipeWire(dataDir, this.log, name => this.onAudioCrash(name));
+            this.pipewire = new PipeWire(dataDir, this.log, (_name, reason) => void this.onAudioFailure(reason));
             await this.pipewire.start();
 
             this.stream = new StreamServer(
@@ -139,9 +146,14 @@ class SpotifyConnect extends utils.Adapter {
             );
             await this.stream.start();
         } catch (e) {
-            this.log.error(`Cannot start audio: ${(e as Error).message}`);
+            await this.onAudioFailure(`Cannot start audio: ${(e as Error).message}`);
             return;
         }
+        // audio runs stable for a while: the next failure starts again with the short delay
+        this.audioOkTimer = this.setTimeout(
+            () => void fs.rm(this.audioFailureFile(), { force: true }).catch(() => undefined),
+            AUDIO_STABLE_MS,
+        ) as any;
         this.streamUrl = `http://${c.streamHost || this.detectHost()}:${c.streamPort || 8097}${this.stream.path}`;
         await this.setState('stream.url', this.streamUrl, true);
         this.log.info(`Players will receive ${this.streamUrl}`);
@@ -293,12 +305,43 @@ class SpotifyConnect extends utils.Adapter {
         s.start();
     }
 
-    private onAudioCrash(name: string): void {
-        if (this.unloading) {
+    private audioFailureFile(): string {
+        return join(utils.getAbsoluteInstanceDataDir(this), 'audio-failures.json');
+    }
+
+    /**
+     * PipeWire did not start or stopped unexpectedly: restart the adapter with a growing delay, so that a system
+     * where PipeWire cannot run (e.g. some LXC containers) does not end up in a restart loop.
+     * The failure count survives the adapter restart.
+     */
+    private async onAudioFailure(reason: string): Promise<void> {
+        // pipewire-pulse and wireplumber die together with pipewire: count that as one failure
+        if (this.unloading || this.audioRestartTimer) {
             return;
         }
-        this.log.error(`Audio service ${name} stopped, restarting adapter`);
-        this.restartAdapter();
+        this.audioRestartTimer = this.setTimeout(() => this.restartAdapter(), AUDIO_RETRY_MAX_MS) as any;
+        let count = 0;
+        try {
+            count = JSON.parse(await fs.readFile(this.audioFailureFile(), 'utf8')).count || 0;
+        } catch {
+            // first failure
+        }
+        count++;
+        await fs.writeFile(this.audioFailureFile(), JSON.stringify({ count, ts: Date.now() })).catch(() => undefined);
+        const delay = Math.min(AUDIO_RETRY_MIN_MS * 2 ** (count - 1), AUDIO_RETRY_MAX_MS);
+        this.log.error(`${reason}. Restarting adapter in ${Math.round(delay / 1000)}s (failure ${count})`);
+        await this.setState('info.updateError', reason, true);
+        if (this.audioOkTimer) {
+            clearTimeout(this.audioOkTimer);
+            this.audioOkTimer = undefined;
+        }
+        const pipewire = this.pipewire;
+        this.pipewire = undefined; // startSoloist() does nothing without audio
+        await this.soloist?.stop();
+        await this.stream?.stop();
+        await pipewire?.stop();
+        clearTimeout(this.audioRestartTimer);
+        this.audioRestartTimer = this.setTimeout(() => this.restartAdapter(), delay) as any;
     }
 
     private restartAdapter(): void {
@@ -579,7 +622,13 @@ class SpotifyConnect extends utils.Adapter {
     }
 
     private async cleanup(): Promise<void> {
-        for (const t of [this.updateTimer, this.restartTimer, this.stopTimer]) {
+        for (const t of [
+            this.updateTimer,
+            this.restartTimer,
+            this.stopTimer,
+            this.audioOkTimer,
+            this.audioRestartTimer,
+        ]) {
             if (t) {
                 clearTimeout(t);
             }

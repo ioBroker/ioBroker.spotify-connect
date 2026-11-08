@@ -119,6 +119,10 @@ Spotify's official download server on your device.
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+### **WORK IN PROGRESS**
+- (@GermanBluefox) No restart loop if PipeWire cannot run: the adapter restarts with a growing delay (30s up to 30 min)
+- (@GermanBluefox) Log the output of PipeWire/WirePlumber when they exit, so the reason is visible without debug level
+
 ### 0.1.3 (2026-11-07)
 - (@GermanBluefox) Debian 12 / Raspberry Pi OS Bookworm: Soloist is started with a private glibc from Debian 13
 
