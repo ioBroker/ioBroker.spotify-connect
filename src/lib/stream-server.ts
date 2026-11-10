@@ -93,6 +93,10 @@ export class StreamServer {
         this.log.debug(
             `${req.method} ${req.url} from ${req.socket.remoteAddress} (${req.headers['user-agent'] || ''})`,
         );
+        // Send the endless stream like an internet radio: no Content-Length and no chunked
+        // encoding, the body simply ends when the connection closes. ESPHome media players
+        // (ESP-IDF HTTP client) hang when they stop a chunked stream and ignore later URLs.
+        res.useChunkedEncodingByDefault = false;
         res.writeHead(200, {
             'Content-Type': CONTENT_TYPE[this.opts.format],
             'Cache-Control': 'no-cache, no-store',
